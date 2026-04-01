@@ -3,10 +3,11 @@
     "name": "word-match-kids",
     "slug": "word-match-kids",
     "version": "1.0.0",
+    "scheme": "wordmatchkids",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -20,10 +21,20 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.avinjss.wordmatchkids"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-dev-client",
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d0d6128d-2553-4dd9-85d9-2afc2a3f4b9d"
+      }
     }
   }
 }
