@@ -50,7 +50,7 @@ const NARRATION = [
   "First, you'll see a picture. Tap the letters to spell the word. Like this — Cat! Amazing!",
   "Next, find letters that appear in BOTH words. See how A glows in Cat and Hat? Those are your keys!",
   "Then use those glowing letters to build brand new words. A and T makes AT! Build more words for more points!",
-  "Complete each level to earn up to three stars! Collect them all and become a Word Match legend! Are you ready?",
+  "Complete each level to earn up to three stars! Collect them all and become a Lexie's Word Lab legend! Are you ready?",
 ];
 
 // 5 background palettes — one per chapter
@@ -338,30 +338,43 @@ function Tile({ letter, ci=0, delay=0, isMatch=false, revealed=false, size=62 })
 //  CHAPTER DEMOS (auto-animated, no user input)
 // ══════════════════════════════════════════════════════════════════
 
-function Ch0_Welcome() {
-  const [rev, setRev] = useState(false);
-  const titleS = useSharedValue(0);
+function StepBadge({ emoji, line1, line2, color, delay }) {
+  const sc = useSharedValue(0);
+  const op = useSharedValue(0);
   useEffect(() => {
-    titleS.value = withSpring(1, {damping:7,stiffness:80});
-    const t = setTimeout(() => {
-      setRev(true);
-    }, 300);
-    return () => clearTimeout(t);
+    sc.value = withDelay(delay, withSpring(1, { damping: 7, stiffness: 100 }));
+    op.value = withDelay(delay, withTiming(1, { duration: 300 }));
   }, []);
-  const ta = useAnimatedStyle(() => ({transform:[{scale:titleS.value}]}));
+  const anim = useAnimatedStyle(() => ({ transform: [{ scale: sc.value }], opacity: op.value }));
   return (
-    <View style={dm.center}>
-      <Animated.View style={[dm.titleBadge, ta]}>
-        <Text style={dm.titleEmoji}>🦉</Text>
-        <Text style={dm.titleBig}>WORD MATCH</Text>
-        <Text style={dm.titleSub}>K I D S</Text>
-      </Animated.View>
-      <View style={{flexDirection:'row',gap:8,marginTop:16}}>
-        {['W','O','R','D'].map((l,i) => <Tile key={i} letter={l} ci={i} delay={400+i*150} revealed={rev} size={58}/>)}
+    <Animated.View style={[{
+      flexDirection: 'row', alignItems: 'center', gap: 14,
+      backgroundColor: 'rgba(255,255,255,0.18)',
+      borderRadius: 22, paddingHorizontal: 22, paddingVertical: 14,
+      borderWidth: 2.5, borderColor: color,
+      shadowColor: color, shadowOffset:{width:0,height:4}, shadowOpacity:0.5, shadowRadius:10, elevation:8,
+      width: '100%',
+    }, anim]}>
+      <Text style={{ fontSize: 36 }}>{emoji}</Text>
+      <View>
+        <Text style={{ fontFamily:'Nunito_800ExtraBold', fontSize:18, color:'white',
+          textShadowColor:'rgba(0,0,0,0.4)', textShadowOffset:{width:1,height:1}, textShadowRadius:3 }}>
+          {line1}
+        </Text>
+        <Text style={{ fontFamily:'Nunito_700Bold', fontSize:13, color:'rgba(255,255,255,0.80)', marginTop:1 }}>
+          {line2}
+        </Text>
       </View>
-      <View style={{flexDirection:'row',gap:7,marginTop:8}}>
-        {['M','A','T','C','H'].map((l,i) => <Tile key={i} letter={l} ci={i+4} delay={600+i*130} revealed={rev} size={50}/>)}
-      </View>
+    </Animated.View>
+  );
+}
+
+function Ch0_Welcome() {
+  return (
+    <View style={[dm.center, { gap: 12, paddingHorizontal: 10 }]}>
+      <StepBadge emoji="✏️" line1="STEP 1 — SPELL IT" line2="Tap letters to spell the picture word"   color="#60A5FA" delay={200} />
+      <StepBadge emoji="🔍" line1="STEP 2 — FIND THE MATCH" line2="Spot letters that appear in BOTH words"  color="#A78BFA" delay={500} />
+      <StepBadge emoji="🏗️" line1="STEP 3 — BUILD WORDS"  line2="Use matched letters to make new words" color="#34D399" delay={800} />
     </View>
   );
 }
@@ -679,10 +692,10 @@ export default function IntroScreen({ navigation }) {
       if (s) s.setVolumeAsync(0).then(() => s.playAsync()).catch(() => {});
     });
 
-    // Background music — "Feel Good Island" (CC0), loops softly during the intro
+    // Load music silently — will be played on user tap (iOS requires gesture)
     Audio.Sound.createAsync(
       require('../../assets/sounds/bg_music.mp3'),
-      { shouldPlay: true, isLooping: true, volume: 0.30 },
+      { shouldPlay: false, isLooping: true, volume: 0.30 },
     ).then(({ sound }) => { bgMusicRef.current = sound; }).catch(() => {});
 
     return () => {
@@ -697,10 +710,11 @@ export default function IntroScreen({ navigation }) {
 
   // ── Tap-to-start handler — user gesture unlocks iOS audio session ──
   const startMovie = () => {
-    // Play tile_tap at near-zero volume: this user-gesture-triggered play
-    // activates AVAudioSession so all subsequent Speech.speak calls work.
+    // User gesture — unlocks iOS audio session for both TTS and music
     const s = sfxRef.current.tile_tap;
     if (s) s.setVolumeAsync(0.01).then(() => s.playAsync()).catch(() => {});
+    // Start background music now that we have a user gesture
+    if (bgMusicRef.current) bgMusicRef.current.playAsync().catch(() => {});
     setStarted(true);
   };
 
