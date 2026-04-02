@@ -511,38 +511,86 @@ function ChapterLabel({ text }) {
 // ══════════════════════════════════════════════════════════════════
 
 function TapToStart({ onStart }) {
-  const pulse = useSharedValue(1);
-  const starOp = useSharedValue(0);
+  const logoSc  = useSharedValue(0.3);
+  const logoOp  = useSharedValue(0);
+  const glowOp  = useSharedValue(0.3);
+  const btnSc   = useSharedValue(0);
+  const btnPulse= useSharedValue(1);
+  const starOp  = useSharedValue(0);
+
   useEffect(() => {
-    pulse.value = withRepeat(
+    // Logo bounces in
+    logoSc.value = withDelay(100, withSpring(1, { damping: 7, stiffness: 80 }));
+    logoOp.value = withDelay(100, withTiming(1, { duration: 400 }));
+    // Glow halo breathes
+    glowOp.value = withDelay(600, withRepeat(
+      withSequence(withTiming(0.85, { duration: 1400 }), withTiming(0.25, { duration: 1400 })),
+      -1, true,
+    ));
+    // Button pops in after logo settles
+    btnSc.value = withDelay(700, withSpring(1, { damping: 6, stiffness: 100 }));
+    // Button pulses
+    btnPulse.value = withDelay(1200, withRepeat(
       withSequence(
-        withTiming(1.12, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.06, { duration: 700, easing: Easing.inOut(Easing.ease) }),
         withTiming(1.0,  { duration: 700, easing: Easing.inOut(Easing.ease) }),
       ), -1, false,
-    );
+    ));
+    // Stars twinkle
     starOp.value = withRepeat(
-      withSequence(withTiming(1, { duration: 800 }), withTiming(0.3, { duration: 800 })),
+      withSequence(withTiming(1, { duration: 900 }), withTiming(0.2, { duration: 900 })),
       -1, false,
     );
   }, []);
-  const pulseAnim = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
-  const starAnim  = useAnimatedStyle(() => ({ opacity: starOp.value }));
+
+  const logoAnim = useAnimatedStyle(() => ({
+    opacity: logoOp.value,
+    transform: [{ scale: logoSc.value }],
+  }));
+  const glowAnim = useAnimatedStyle(() => ({ opacity: glowOp.value }));
+  const btnAnim  = useAnimatedStyle(() => ({
+    transform: [{ scale: btnSc.value * btnPulse.value }],
+    opacity: btnSc.value,
+  }));
+  const starAnim = useAnimatedStyle(() => ({ opacity: starOp.value }));
+
   return (
     <Pressable style={StyleSheet.absoluteFill} onPress={onStart}>
       <View style={tap.container}>
         <Cloud top={40}  startX={SW * 0.3} speed={22000} scale={0.9} />
         <Cloud top={110} startX={-180}      speed={30000} scale={0.65} />
-        <View style={tap.inner}>
-          <Lexie mood="excited" size={170} />
-          <Text style={tap.title}>Word Match Kids</Text>
-          <Animated.View style={pulseAnim}>
-            <View style={tap.tapPill}>
-              <Animated.Text style={[tap.stars, starAnim]}>✦ ✦ ✦</Animated.Text>
-              <Text style={tap.tapTxt}>Ready to spell? Let's Go!</Text>
-              <Animated.Text style={[tap.stars, starAnim]}>✦ ✦ ✦</Animated.Text>
+
+        {/* ── Glowing halo behind owl ── */}
+        <Animated.View style={[tap.glow, glowAnim]} />
+
+        {/* ── Logo: owl + name ── */}
+        <Animated.View style={[tap.logoWrap, logoAnim]}>
+          <Lexie mood="wave" size={220} />
+
+          {/* Name badge */}
+          <View style={tap.nameBadge}>
+            <Text style={tap.nameSmall}>L E X I E ' S</Text>
+            <Text style={tap.nameBig}>WORD LAB</Text>
+            <View style={tap.tagRow}>
+              <Text style={tap.tagDot}>✦</Text>
+              <Text style={tap.tagTxt}>Spell</Text>
+              <Text style={tap.tagDot}>✦</Text>
+              <Text style={tap.tagTxt}>Match</Text>
+              <Text style={tap.tagDot}>✦</Text>
+              <Text style={tap.tagTxt}>Build</Text>
+              <Text style={tap.tagDot}>✦</Text>
             </View>
-          </Animated.View>
-        </View>
+          </View>
+        </Animated.View>
+
+        {/* ── CTA button ── */}
+        <Animated.View style={[tap.btnWrap, btnAnim]}>
+          <LinearGradient colors={['#FF8C00','#FF4500']} style={tap.btn}>
+            <Animated.Text style={[tap.stars, starAnim]}>✦  ✦  ✦</Animated.Text>
+            <Text style={tap.btnTxt}>Ready to spell? Let's Go!</Text>
+            <Animated.Text style={[tap.stars, starAnim]}>✦  ✦  ✦</Animated.Text>
+          </LinearGradient>
+        </Animated.View>
       </View>
     </Pressable>
   );
@@ -906,29 +954,61 @@ const s = StyleSheet.create({
 
 const tap = StyleSheet.create({
   container: {
-    flex:1, alignItems:'center', justifyContent:'center',
+    flex:1, alignItems:'center', justifyContent:'center', gap:32,
   },
-  inner: {
-    alignItems:'center', gap:18, paddingHorizontal:30,
+  // Glowing circle behind owl
+  glow: {
+    position:'absolute',
+    width: SW * 0.82, height: SW * 0.82, borderRadius: SW * 0.41,
+    backgroundColor:'rgba(255,200,80,0.22)',
+    shadowColor:'#FFD700', shadowOffset:{width:0,height:0}, shadowOpacity:1, shadowRadius:60,
+    elevation:0,
   },
-  title: {
-    fontFamily:'Nunito_800ExtraBold', fontSize:34, color:'white',
-    textAlign:'center', letterSpacing:1,
-    textShadowColor:'rgba(0,0,0,0.5)', textShadowOffset:{width:2,height:3}, textShadowRadius:8,
+  logoWrap: {
+    alignItems:'center', gap:16,
   },
-  tapPill: {
-    backgroundColor:'rgba(255,255,255,0.22)',
-    borderRadius:40, paddingHorizontal:28, paddingVertical:14,
-    borderWidth:2.5, borderColor:'rgba(255,255,255,0.55)',
-    alignItems:'center', gap:4,
-    shadowColor:'#000', shadowOffset:{width:0,height:6}, shadowOpacity:0.25, shadowRadius:10, elevation:8,
+  nameBadge: {
+    alignItems:'center',
+    backgroundColor:'rgba(0,0,0,0.30)',
+    borderRadius:28, paddingHorizontal:32, paddingVertical:16,
+    borderWidth:2.5, borderColor:'rgba(255,255,255,0.30)',
+    shadowColor:'#000', shadowOffset:{width:0,height:8}, shadowOpacity:0.4, shadowRadius:16, elevation:12,
+    gap:4,
   },
-  tapTxt: {
-    fontFamily:'Nunito_800ExtraBold', fontSize:20, color:'white', textAlign:'center',
-    textShadowColor:'rgba(0,0,0,0.4)', textShadowOffset:{width:1,height:2}, textShadowRadius:4,
+  nameSmall: {
+    fontFamily:'Nunito_800ExtraBold', fontSize:14, color:'rgba(255,220,100,0.95)',
+    letterSpacing:7, textAlign:'center',
+    textShadowColor:'rgba(0,0,0,0.6)', textShadowOffset:{width:1,height:1}, textShadowRadius:4,
+  },
+  nameBig: {
+    fontFamily:'Nunito_800ExtraBold', fontSize:42, color:'white',
+    letterSpacing:3, textAlign:'center',
+    textShadowColor:'rgba(0,0,0,0.55)', textShadowOffset:{width:2,height:3}, textShadowRadius:8,
+  },
+  tagRow: {
+    flexDirection:'row', alignItems:'center', gap:8, marginTop:4,
+  },
+  tagDot: {
+    fontFamily:'Nunito_700Bold', fontSize:11, color:'#FFD700',
+  },
+  tagTxt: {
+    fontFamily:'Nunito_700Bold', fontSize:15, color:'rgba(255,255,255,0.90)',
+    textShadowColor:'rgba(0,0,0,0.4)', textShadowOffset:{width:1,height:1}, textShadowRadius:3,
+  },
+  btnWrap: {
+    width: SW * 0.78,
+    borderRadius:40, overflow:'hidden',
+    shadowColor:'#FF4500', shadowOffset:{width:0,height:8}, shadowOpacity:0.55, shadowRadius:18, elevation:14,
+  },
+  btn: {
+    paddingVertical:18, paddingHorizontal:24,
+    alignItems:'center', borderRadius:40, gap:4,
+  },
+  btnTxt: {
+    fontFamily:'Nunito_800ExtraBold', fontSize:22, color:'white', textAlign:'center',
+    textShadowColor:'rgba(0,0,0,0.35)', textShadowOffset:{width:1,height:2}, textShadowRadius:4,
   },
   stars: {
-    fontFamily:'Nunito_700Bold', fontSize:14, color:'#FFD700', letterSpacing:6,
-    textShadowColor:'rgba(0,0,0,0.4)', textShadowOffset:{width:1,height:1}, textShadowRadius:3,
+    fontFamily:'Nunito_700Bold', fontSize:13, color:'#FFE080', letterSpacing:8,
   },
 });
