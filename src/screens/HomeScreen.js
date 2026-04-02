@@ -367,7 +367,6 @@ export default function HomeScreen({ navigation }) {
 
           {/* Title */}
           <Animated.View style={[ui.titleArea, titleStyle]}>
-            <LexieBadge style={{ marginBottom: 8 }} />
             <Text style={ui.title}>LEXIE'S</Text>
             <View style={ui.kidsBadge}>
               <Text style={ui.kidsText}>WORD LAB</Text>
