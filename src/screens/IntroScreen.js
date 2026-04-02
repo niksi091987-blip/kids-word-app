@@ -679,12 +679,11 @@ export default function IntroScreen({ navigation }) {
       if (s) s.setVolumeAsync(0).then(() => s.playAsync()).catch(() => {});
     });
 
-    // Background music — loops softly during the intro
-    // To use your own track: add assets/sounds/bg_music.mp3 and uncomment below
-    // Audio.Sound.createAsync(
-    //   require('../../assets/sounds/bg_music.mp3'),
-    //   { shouldPlay: true, isLooping: true, volume: 0.30 },
-    // ).then(({ sound }) => { bgMusicRef.current = sound; }).catch(() => {});
+    // Background music — "Feel Good Island" (CC0), loops softly during the intro
+    Audio.Sound.createAsync(
+      require('../../assets/sounds/bg_music.mp3'),
+      { shouldPlay: true, isLooping: true, volume: 0.30 },
+    ).then(({ sound }) => { bgMusicRef.current = sound; }).catch(() => {});
 
     return () => {
       Speech.stop();
