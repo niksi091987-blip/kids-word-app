@@ -338,43 +338,54 @@ function Tile({ letter, ci=0, delay=0, isMatch=false, revealed=false, size=62 })
 //  CHAPTER DEMOS (auto-animated, no user input)
 // ══════════════════════════════════════════════════════════════════
 
-function StepBadge({ emoji, line1, line2, color, delay }) {
-  const sc = useSharedValue(0);
+function StepCard({ emoji, num, title, sub, colors, delay, fromRight }) {
+  const tx = useSharedValue(fromRight ? SW : -SW);
   const op = useSharedValue(0);
   useEffect(() => {
-    sc.value = withDelay(delay, withSpring(1, { damping: 7, stiffness: 100 }));
-    op.value = withDelay(delay, withTiming(1, { duration: 300 }));
+    tx.value = withDelay(delay, withSpring(0, { damping: 14, stiffness: 100 }));
+    op.value = withDelay(delay, withTiming(1, { duration: 250 }));
   }, []);
-  const anim = useAnimatedStyle(() => ({ transform: [{ scale: sc.value }], opacity: op.value }));
+  const anim = useAnimatedStyle(() => ({ transform: [{ translateX: tx.value }], opacity: op.value }));
   return (
-    <Animated.View style={[{
-      flexDirection: 'row', alignItems: 'center', gap: 14,
-      backgroundColor: 'rgba(255,255,255,0.18)',
-      borderRadius: 22, paddingHorizontal: 22, paddingVertical: 14,
-      borderWidth: 2.5, borderColor: color,
-      shadowColor: color, shadowOffset:{width:0,height:4}, shadowOpacity:0.5, shadowRadius:10, elevation:8,
-      width: '100%',
-    }, anim]}>
-      <Text style={{ fontSize: 36 }}>{emoji}</Text>
-      <View>
-        <Text style={{ fontFamily:'Nunito_800ExtraBold', fontSize:18, color:'white',
-          textShadowColor:'rgba(0,0,0,0.4)', textShadowOffset:{width:1,height:1}, textShadowRadius:3 }}>
-          {line1}
-        </Text>
-        <Text style={{ fontFamily:'Nunito_700Bold', fontSize:13, color:'rgba(255,255,255,0.80)', marginTop:1 }}>
-          {line2}
-        </Text>
-      </View>
+    <Animated.View style={anim}>
+      <LinearGradient colors={colors} style={{
+        flexDirection:'row', alignItems:'center', gap:16,
+        borderRadius:24, paddingVertical:14, paddingHorizontal:18,
+        shadowColor:'#000', shadowOffset:{width:0,height:5}, shadowOpacity:0.30, shadowRadius:10, elevation:10,
+        width: SW - 60,
+      }}>
+        {/* Number chip */}
+        <View style={{
+          width:44, height:44, borderRadius:22,
+          backgroundColor:'rgba(255,255,255,0.25)',
+          alignItems:'center', justifyContent:'center',
+          borderWidth:2, borderColor:'rgba(255,255,255,0.50)',
+        }}>
+          <Text style={{ fontFamily:'Nunito_800ExtraBold', fontSize:20, color:'white' }}>{num}</Text>
+        </View>
+        {/* Emoji */}
+        <Text style={{ fontSize:34 }}>{emoji}</Text>
+        {/* Text */}
+        <View style={{ flex:1 }}>
+          <Text style={{ fontFamily:'Nunito_800ExtraBold', fontSize:16, color:'white', lineHeight:20,
+            textShadowColor:'rgba(0,0,0,0.3)', textShadowOffset:{width:1,height:1}, textShadowRadius:3 }}>
+            {title}
+          </Text>
+          <Text style={{ fontFamily:'Nunito_600SemiBold', fontSize:12, color:'rgba(255,255,255,0.85)', marginTop:2 }}>
+            {sub}
+          </Text>
+        </View>
+      </LinearGradient>
     </Animated.View>
   );
 }
 
 function Ch0_Welcome() {
   return (
-    <View style={[dm.center, { gap: 12, paddingHorizontal: 10 }]}>
-      <StepBadge emoji="✏️" line1="STEP 1 — SPELL IT" line2="Tap letters to spell the picture word"   color="#60A5FA" delay={200} />
-      <StepBadge emoji="🔍" line1="STEP 2 — FIND THE MATCH" line2="Spot letters that appear in BOTH words"  color="#A78BFA" delay={500} />
-      <StepBadge emoji="🏗️" line1="STEP 3 — BUILD WORDS"  line2="Use matched letters to make new words" color="#34D399" delay={800} />
+    <View style={{ alignItems:'center', gap:12 }}>
+      <StepCard num="1" emoji="✏️" title="Spell the Word"      sub="Tap letters to spell what you see"        colors={['#2563EB','#1D4ED8']} delay={150} fromRight={false} />
+      <StepCard num="2" emoji="🔍" title="Find the Match"      sub="Spot letters that appear in both words"    colors={['#7C3AED','#5B21B6']} delay={450} fromRight={true}  />
+      <StepCard num="3" emoji="🏗️" title="Build New Words"    sub="Use matched letters to score big points"   colors={['#059669','#047857']} delay={750} fromRight={false} />
     </View>
   );
 }
@@ -706,7 +717,7 @@ export default function IntroScreen({ navigation }) {
   }, []);
 
   // Fixed durations per chapter (primary advance mechanism — not speech.onDone)
-  const CHAPTER_MS = [6000, 7500, 7500, 7000, 7500];
+  const CHAPTER_MS = [10000, 8500, 8500, 8000, 8500];
 
   // ── Tap-to-start handler — user gesture unlocks iOS audio session ──
   const startMovie = () => {
