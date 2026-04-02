@@ -6,7 +6,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue, useAnimatedStyle,
   withSpring, withRepeat, withSequence,
-  withTiming, withDelay, Easing, runOnJS,
+  withTiming, withDelay, Easing,
   cancelAnimation,
 } from 'react-native-reanimated';
 import * as Speech from 'expo-speech';
@@ -536,36 +536,41 @@ export default function IntroScreen({ navigation }) {
     };
   }, []);
 
+  // Fixed durations per chapter (primary advance mechanism — not speech.onDone)
+  const CHAPTER_MS = [6000, 7500, 7500, 7000, 7500];
+
   // ── Chapter enter ──────────────────────────────────────────────
   useEffect(() => {
     if (chapter >= 5) {
-      // Show play button
       playS.value = withSpring(1, { damping: 6, stiffness: 100 });
       return;
     }
     busy.current = false;
-    setVisible(true);
+
+    // Fade in content
+    contentOp.value = 0;
+    contentOp.value = withTiming(1, { duration: 500 });
+    contentY.value  = 0;
 
     // Lexie entrance
     lexieY.value = 80; lexieS.value = 0.4;
     lexieY.value = withSpring(0, { damping: 14, stiffness: 100 });
     lexieS.value = withSpring(1, { damping: 8,  stiffness: 100 });
 
-    // Clear previous auto timer
-    if (autoTimer.current) clearTimeout(autoTimer.current);
+    // Narrate (fire and forget — do NOT depend on onDone)
     Speech.stop();
+    const sTimer = setTimeout(() => {
+      Speech.speak(NARRATION[chapter], { language: 'en-US', pitch: 1.18, rate: 0.80 });
+    }, 500);
 
-    // Narrate — then auto-advance
-    setTimeout(() => {
-      Speech.speak(NARRATION[chapter], {
-        language: 'en-US', pitch: 1.18, rate: 0.80,
-        onDone: () => {
-          autoTimer.current = setTimeout(() => advanceChapter(), 1200);
-        },
-      });
-    }, 600);
+    // PRIMARY auto-advance: fixed timer — reliable on all devices
+    if (autoTimer.current) clearTimeout(autoTimer.current);
+    autoTimer.current = setTimeout(() => advanceChapter(), CHAPTER_MS[chapter]);
 
-    return () => { if (autoTimer.current) clearTimeout(autoTimer.current); };
+    return () => {
+      clearTimeout(sTimer);
+      if (autoTimer.current) clearTimeout(autoTimer.current);
+    };
   }, [chapter]);
 
   // ── Advance to next chapter with crossfade ─────────────────────
@@ -591,9 +596,7 @@ export default function IntroScreen({ navigation }) {
     setTimeout(() => {
       if (next >= 5) {
         // Finished — show Home
-        AsyncStorage.setItem(INTRO_KEY, '1').then(() => {
-          runOnJS(setChapter)(5);
-        });
+        AsyncStorage.setItem(INTRO_KEY, '1').then(() => setChapter(5));
       } else {
         setChapter(next);
       }
