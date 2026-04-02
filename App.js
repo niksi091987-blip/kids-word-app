@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -12,6 +12,7 @@ import {
 } from '@expo-google-fonts/nunito';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { ProgressProvider } from './src/context/ProgressContext';
 import { GameProvider } from './src/context/GameContext';
@@ -20,21 +21,34 @@ import HomeScreen from './src/screens/HomeScreen';
 import LevelSelectScreen from './src/screens/LevelSelectScreen';
 import GameScreen from './src/screens/GameScreen';
 import ResultScreen from './src/screens/ResultScreen';
+import IntroScreen from './src/screens/IntroScreen';
 
 import { COLORS } from './src/constants/colors';
 
 const Stack = createNativeStackNavigator();
+const INTRO_KEY = 'wm_intro_v1';
 
 function AppNavigator() {
+  const [initialRoute, setInitialRoute] = useState(null);
+
+  useEffect(() => {
+    AsyncStorage.getItem(INTRO_KEY).then(val => {
+      setInitialRoute('Intro'); // TEMP: force intro for testing — change back to: val ? 'Home' : 'Intro'
+    });
+  }, []);
+
+  if (!initialRoute) return null;
+
   return (
     <Stack.Navigator
-      initialRouteName="Home"
+      initialRouteName={initialRoute}
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
         contentStyle: { backgroundColor: COLORS.bgDark || COLORS.background },
       }}
     >
+      <Stack.Screen name="Intro" component={IntroScreen} options={{ animation: 'fade' }} />
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen
         name="LevelSelect"
