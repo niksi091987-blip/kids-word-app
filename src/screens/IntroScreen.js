@@ -46,7 +46,7 @@ async function playSfx(ref, key) {
 
 // ─── Movie data ───────────────────────────────────────────────────
 const NARRATION = [
-  "Hi there! I'm Lexie the owl! Welcome to Word Match Kids! Let's go on a spelling adventure!",
+  "Hi there! I'm Lexie the owl! Welcome to Lexie's Word Lab! Let's go on a spelling adventure!",
   "First, you'll see a picture. Tap the letters to spell the word. Like this — Cat! Amazing!",
   "Next, find letters that appear in BOTH words. See how A glows in Cat and Hat? Those are your keys!",
   "Then use those glowing letters to build brand new words. A and T makes AT! Build more words for more points!",
@@ -65,7 +65,7 @@ const BG = [
 const MOODS    = ['wave', 'excited', 'think', 'happy', 'celebrate'];
 const SIZES    = [152,    105,       105,     105,     138];
 const SPEECHES = [
-  "Hi! I'm Lexie! 🦉\nWelcome to\nWord Match Kids!",
+  "Hi! I'm Lexie! 🦉\nWelcome to\nLexie's Word Lab!",
   "See a picture…\nTap to spell\nthe word! ✏️",
   "Find letters\nin BOTH words!\nThey glow gold! 🌟",
   "Use matched\nletters to build\nnew words! 🏗️",
@@ -119,6 +119,45 @@ function Cloud({ top, startX, speed, scale = 1 }) {
       <View style={{ position:'absolute', left:w*0.35, top:-h*0.75, width:h*1.5, height:h*1.5, backgroundColor:'rgba(255,255,255,0.75)', borderRadius:999 }} />
       <View style={{ position:'absolute', left:w*0.65, top:-h*0.45, width:h*1.1, height:h*1.1, backgroundColor:'rgba(255,255,255,0.75)', borderRadius:999 }} />
     </Animated.View>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════════
+//  STAR FIELD  (twinkling background stars)
+// ══════════════════════════════════════════════════════════════════
+const STARS = Array.from({ length: 22 }, (_, i) => ({
+  x: (i * 137.5) % 100,   // golden-ratio spread across screen width %
+  y: (i * 61.8)  % 80,    // spread across top 80% of screen height %
+  size: 2 + (i % 3) * 1.5,
+  delay: (i * 320) % 2800,
+  dur: 1200 + (i % 5) * 400,
+}));
+
+function StarField() {
+  return (
+    <>
+      {STARS.map((st, i) => <Twinkle key={i} {...st} />)}
+    </>
+  );
+}
+function Twinkle({ x, y, size, delay, dur }) {
+  const op = useSharedValue(0.1);
+  useEffect(() => {
+    op.value = withDelay(delay, withRepeat(
+      withSequence(
+        withTiming(0.85, { duration: dur,  easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.1,  { duration: dur,  easing: Easing.inOut(Easing.ease) }),
+      ), -1, false,
+    ));
+  }, []);
+  const anim = useAnimatedStyle(() => ({ opacity: op.value }));
+  return (
+    <Animated.View style={[{
+      position: 'absolute',
+      left: `${x}%`, top: `${y}%`,
+      width: size, height: size, borderRadius: size / 2,
+      backgroundColor: 'rgba(255,255,255,0.95)',
+    }, anim]} />
   );
 }
 
@@ -557,8 +596,14 @@ function TapToStart({ onStart }) {
   return (
     <Pressable style={StyleSheet.absoluteFill} onPress={onStart}>
       <View style={tap.container}>
-        <Cloud top={40}  startX={SW * 0.3} speed={22000} scale={0.9} />
-        <Cloud top={110} startX={-180}      speed={30000} scale={0.65} />
+        {/* Star field */}
+        <StarField />
+        {/* Clouds — multiple layers for depth */}
+        <Cloud top={30}  startX={SW * 0.55} speed={20000} scale={1.1} />
+        <Cloud top={90}  startX={-150}       speed={28000} scale={0.70} />
+        <Cloud top={170} startX={SW * 0.2}   speed={34000} scale={0.55} />
+        <Cloud top={260} startX={-80}        speed={24000} scale={0.85} />
+        <Cloud top={350} startX={SW * 0.65}  speed={38000} scale={0.50} />
 
         {/* ── Glowing halo behind owl ── */}
         <Animated.View style={[tap.glow, glowAnim]} />
@@ -600,9 +645,10 @@ export default function IntroScreen({ navigation }) {
   const [chapter, setChapter]   = useState(0);   // 0-4 = playing, 5 = end
   const [started, setStarted]   = useState(false); // false = show tap-to-start splash
   const [visible, setVisible]   = useState(true); // content visibility (for crossfade)
-  const sfxRef    = useRef({});
-  const autoTimer = useRef(null);
-  const busy      = useRef(false);
+  const sfxRef     = useRef({});
+  const bgMusicRef = useRef(null);
+  const autoTimer  = useRef(null);
+  const busy       = useRef(false);
 
   // 5 background opacities for smooth crossfade
   const bg0 = useSharedValue(1);
@@ -632,9 +678,18 @@ export default function IntroScreen({ navigation }) {
       const s = l.tile_tap;
       if (s) s.setVolumeAsync(0).then(() => s.playAsync()).catch(() => {});
     });
+
+    // Background music — loops softly during the intro
+    // To use your own track: add assets/sounds/bg_music.mp3 and uncomment below
+    // Audio.Sound.createAsync(
+    //   require('../../assets/sounds/bg_music.mp3'),
+    //   { shouldPlay: true, isLooping: true, volume: 0.30 },
+    // ).then(({ sound }) => { bgMusicRef.current = sound; }).catch(() => {});
+
     return () => {
       Speech.stop();
       Object.values(sfxRef.current).forEach(s => { try { s.unloadAsync(); } catch {} });
+      if (bgMusicRef.current) bgMusicRef.current.unloadAsync().catch(() => {});
     };
   }, []);
 
@@ -718,14 +773,19 @@ export default function IntroScreen({ navigation }) {
     }, 300);
   };
 
-  const handleSkip = () => {
+  const stopAll = () => {
     Speech.stop();
     if (autoTimer.current) clearTimeout(autoTimer.current);
+    if (bgMusicRef.current) bgMusicRef.current.stopAsync().catch(() => {});
+  };
+
+  const handleSkip = () => {
+    stopAll();
     AsyncStorage.setItem(INTRO_KEY, '1').then(() => navigation.replace('Home'));
   };
 
   const handlePlay = () => {
-    Speech.stop();
+    stopAll();
     navigation.replace('Home');
   };
 
@@ -762,9 +822,15 @@ export default function IntroScreen({ navigation }) {
         <FallParticle key={`${chapter}-${i}`} {...p} />
       ))}
 
-      {/* ── Drifting clouds ── */}
-      <Cloud top={50}  startX={SW * 0.3}  speed={22000} scale={0.9} />
-      <Cloud top={120} startX={-180}       speed={30000} scale={0.65} />
+      {/* ── Star field ── */}
+      <StarField />
+
+      {/* ── Drifting clouds — multiple depth layers ── */}
+      <Cloud top={40}  startX={SW * 0.5}   speed={22000} scale={1.0} />
+      <Cloud top={110} startX={-180}        speed={30000} scale={0.65} />
+      <Cloud top={195} startX={SW * 0.25}   speed={36000} scale={0.50} />
+      <Cloud top={290} startX={-100}        speed={26000} scale={0.80} />
+      <Cloud top={380} startX={SW * 0.70}   speed={40000} scale={0.45} />
 
       <SafeAreaView style={{ flex: 1 }}>
 

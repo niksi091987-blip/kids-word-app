@@ -366,9 +366,9 @@ export default function HomeScreen({ navigation }) {
 
           {/* Title */}
           <Animated.View style={[ui.titleArea, titleStyle]}>
-            <Text style={ui.title}>WORD MATCH</Text>
+            <Text style={ui.title}>LEXIE'S</Text>
             <View style={ui.kidsBadge}>
-              <Text style={ui.kidsText}>KIDS</Text>
+              <Text style={ui.kidsText}>WORD LAB</Text>
             </View>
           </Animated.View>
 
