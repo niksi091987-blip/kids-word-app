@@ -536,9 +536,15 @@ export default function IntroScreen({ navigation }) {
   // Play button
   const playS = useSharedValue(0);
 
-  // Load sounds
+  // Load sounds + unlock iOS audio session with a silent play
   useEffect(() => {
-    loadSounds().then(l => { sfxRef.current = l; });
+    loadSounds().then(l => {
+      sfxRef.current = l;
+      // Playing at volume 0 activates the AVAudioSession on iOS so TTS
+      // can speak without needing a user gesture first.
+      const s = l.tile_tap;
+      if (s) s.setVolumeAsync(0).then(() => s.playAsync()).catch(() => {});
+    });
     return () => {
       Speech.stop();
       Object.values(sfxRef.current).forEach(s => { try { s.unloadAsync(); } catch {} });
@@ -567,10 +573,13 @@ export default function IntroScreen({ navigation }) {
     lexieS.value = withSpring(1, { damping: 8,  stiffness: 100 });
 
     // Narrate (fire and forget — do NOT depend on onDone)
+    // chapter 0: delay 1200ms to let silent-unlock + audio session init settle
+    // later chapters: 500ms is fine (session already active)
     Speech.stop();
+    const speechDelay = chapter === 0 ? 1200 : 500;
     const sTimer = setTimeout(() => {
       Speech.speak(NARRATION[chapter], { pitch: 1.18, rate: 0.80 });
-    }, 500);
+    }, speechDelay);
 
     // PRIMARY auto-advance: fixed timer — reliable on all devices
     if (autoTimer.current) clearTimeout(autoTimer.current);
