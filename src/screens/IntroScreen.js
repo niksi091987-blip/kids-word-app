@@ -706,7 +706,7 @@ export default function IntroScreen({ navigation }) {
     // Load music silently — will be played on user tap (iOS requires gesture)
     Audio.Sound.createAsync(
       require('../../assets/sounds/bg_music.mp3'),
-      { shouldPlay: false, isLooping: true, volume: 0.30 },
+      { shouldPlay: false, isLooping: true, volume: 0.55 },
     ).then(({ sound }) => { bgMusicRef.current = sound; }).catch(() => {});
 
     return () => {
@@ -900,13 +900,18 @@ export default function IntroScreen({ navigation }) {
         {/* ── END: LET'S PLAY button ── */}
         {isDone && (
           <View style={s.endScreen}>
+            {/* Logo badge */}
+            <View style={s.endLogoBadge}>
+              <Text style={s.endLogoSmall}>L E X I E ' S</Text>
+              <Text style={s.endLogoBig}>WORD LAB</Text>
+            </View>
             <Animated.View style={[{ alignItems: 'center' }, lexieAnim]}>
               <Lexie mood="celebrate" size={160} />
             </Animated.View>
             <Animated.View style={[s.playBtnWrap, playAnim]}>
               <Pressable style={s.playBtn} onPress={handlePlay}>
                 <LinearGradient colors={['#22C55E','#16A34A']} style={s.playBtnGrad}>
-                  <Text style={s.playTxt}>🎮  LET'S PLAY!</Text>
+                  <Text style={s.playTxt}>LET'S PLAY!</Text>
                 </LinearGradient>
               </Pressable>
             </Animated.View>
@@ -1040,6 +1045,20 @@ const s = StyleSheet.create({
   },
   playBtnGrad: { paddingVertical:20, alignItems:'center', borderRadius:36 },
   playTxt:   { fontFamily:'Nunito_800ExtraBold', fontSize:24, color:'white', letterSpacing:1 },
+  endLogoBadge: {
+    alignItems:'center', backgroundColor:'rgba(0,0,0,0.28)',
+    borderRadius:24, paddingHorizontal:30, paddingVertical:12,
+    borderWidth:2, borderColor:'rgba(255,255,255,0.30)',
+  },
+  endLogoSmall: {
+    fontFamily:'Nunito_800ExtraBold', fontSize:13, color:'rgba(255,220,100,0.95)',
+    letterSpacing:6,
+    textShadowColor:'rgba(0,0,0,0.5)', textShadowOffset:{width:1,height:1}, textShadowRadius:3,
+  },
+  endLogoBig: {
+    fontFamily:'Nunito_800ExtraBold', fontSize:34, color:'white', letterSpacing:2,
+    textShadowColor:'rgba(0,0,0,0.5)', textShadowOffset:{width:2,height:2}, textShadowRadius:6,
+  },
 });
 
 const tap = StyleSheet.create({
