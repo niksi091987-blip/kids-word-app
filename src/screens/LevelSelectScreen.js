@@ -21,6 +21,7 @@ import Animated, {
 import { Ionicons } from '@expo/vector-icons';
 import { useProgress } from '../context/ProgressContext';
 import { TOTAL_LEVELS } from '../constants/config';
+import LexieBadge from '../components/LexieBadge';
 
 const BG = ['#0D0B1E', '#1A1035', '#251848'];
 
@@ -139,6 +140,7 @@ export default function LevelSelectScreen({ navigation }) {
     <LinearGradient colors={BG} style={styles.gradient}>
       <SafeAreaView style={styles.safe}>
         {/* Header */}
+        <LexieBadge style={{ marginTop: 4, marginBottom: 6 }} />
         <View style={styles.header}>
           <Pressable
             onPress={() => navigation.goBack()}

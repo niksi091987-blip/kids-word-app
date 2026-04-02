@@ -22,6 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useProgress } from '../context/ProgressContext';
 import { TOTAL_LEVELS } from '../constants/config';
 import { getWordEmoji } from '../data/wordEmojis';
+import LexieBadge from '../components/LexieBadge';
 
 const BG = ['#0D0B1E', '#1A1035', '#251848'];
 
@@ -151,6 +152,7 @@ export default function ResultScreen({ route, navigation }) {
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <Animated.View style={[styles.card, cardStyle]}>
+            <LexieBadge style={{ marginBottom: 10 }} />
             {/* Level badge */}
             <View style={[styles.levelBadge, {
               borderColor: levelColor,

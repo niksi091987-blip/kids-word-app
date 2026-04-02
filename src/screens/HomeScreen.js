@@ -10,6 +10,7 @@ import Animated, {
 import { useProgress, PROGRESS_ACTIONS } from '../context/ProgressContext';
 import { getLevelColor } from '../constants/colors';
 import { TOTAL_LEVELS } from '../constants/config';
+import LexieBadge from '../components/LexieBadge';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -366,6 +367,7 @@ export default function HomeScreen({ navigation }) {
 
           {/* Title */}
           <Animated.View style={[ui.titleArea, titleStyle]}>
+            <LexieBadge style={{ marginBottom: 8 }} />
             <Text style={ui.title}>LEXIE'S</Text>
             <View style={ui.kidsBadge}>
               <Text style={ui.kidsText}>WORD LAB</Text>

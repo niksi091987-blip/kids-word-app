@@ -858,6 +858,17 @@ export default function IntroScreen({ navigation }) {
 
       <SafeAreaView style={{ flex: 1 }}>
 
+        {/* ── Persistent logo badge ── */}
+        <View style={{ alignItems: 'center', paddingTop: 4 }}>
+          <View style={s.introBadge}>
+            <Text style={s.introBadgeOwl}>🦉</Text>
+            <View style={{ flexDirection:'row', alignItems:'baseline', gap:4 }}>
+              <Text style={s.introBadgeSmall}>LEXIE'S</Text>
+              <Text style={s.introBadgeBig}>WORD LAB</Text>
+            </View>
+          </View>
+        </View>
+
         {/* ── Top bar: skip + chapter dots ── */}
         <View style={s.topBar}>
           <View style={s.dots}>
@@ -1028,6 +1039,15 @@ const dm = StyleSheet.create({
 });
 
 const s = StyleSheet.create({
+  introBadge: {
+    flexDirection:'row', alignItems:'center', gap:7,
+    backgroundColor:'rgba(0,0,0,0.30)', borderRadius:20,
+    paddingHorizontal:14, paddingVertical:6,
+    borderWidth:1.5, borderColor:'rgba(255,255,255,0.25)',
+  },
+  introBadgeOwl:   { fontSize:18 },
+  introBadgeSmall: { fontFamily:'Nunito_700Bold', fontSize:10, color:'rgba(255,220,100,0.95)', letterSpacing:2 },
+  introBadgeBig:   { fontFamily:'Nunito_800ExtraBold', fontSize:14, color:'white', letterSpacing:1 },
   topBar:    { flexDirection:'row', justifyContent:'space-between', alignItems:'center', paddingHorizontal:18, paddingTop:4, paddingBottom:2 },
   dots:      { flexDirection:'row', gap:7 },
   dot:       { width:9, height:9, borderRadius:5, backgroundColor:'rgba(255,255,255,0.38)' },

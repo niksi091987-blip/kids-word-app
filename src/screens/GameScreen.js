@@ -28,6 +28,7 @@ import { useSound } from '../hooks/useSound';
 import { useSpeech } from '../hooks/useSpeech';
 import { generatePuzzle, getStarRating, getSpellingHint } from '../utils/gameLogic';
 import { getTimerSeconds, SPELL_SCORE_FIRST_TRY, SPELL_SCORE_WITH_HINT } from '../constants/config';
+import LexieBadge from '../components/LexieBadge';
 import { getWordEmoji, getWordSentence } from '../data/wordEmojis';
 
 import AlphabetPanel from '../components/AlphabetPanel';
@@ -530,6 +531,8 @@ export default function GameScreen({ route, navigation }) {
             <Text style={styles.scoreText}>⭐ {game.score}</Text>
           </Animated.View>
         </View>
+
+        <LexieBadge style={{ marginBottom: 4 }} />
 
         {/* Mascot speech bubble */}
         <View style={styles.mascotRow}>
