@@ -19,6 +19,7 @@ const ROWS = [
   ['O','P','Q','R','S','T','U'],
   ['V','W','X','Y','Z'],
 ];
+const LAST_ROW_IDX = ROWS.length - 1;
 
 function getColor(letter) {
   return KEY_COLORS[letter.charCodeAt(0) % KEY_COLORS.length];
@@ -117,14 +118,16 @@ export default function AlphabetPanel({ onLetterPress, onBackspace, disabled, hi
               highlight={highlight === letter}
             />
           ))}
+          {rowIdx === LAST_ROW_IDX && (
+            <Pressable onPress={handleBack} disabled={disabled} style={[
+              styles.backspaceKey,
+              disabled && { opacity: 0.40 },
+            ]}>
+              <Text style={styles.backspaceKeyText}>⌫</Text>
+            </Pressable>
+          )}
         </View>
       ))}
-      <Pressable onPress={handleBack} disabled={disabled} style={[
-        styles.backspaceBtn,
-        disabled && { opacity: 0.40 },
-      ]}>
-        <Text style={styles.backspaceText}>⌫  BACK</Text>
-      </Pressable>
     </View>
   );
 }
@@ -132,17 +135,17 @@ export default function AlphabetPanel({ onLetterPress, onBackspace, disabled, hi
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 6,
-    paddingBottom: 4,
-    gap: 5,
+    paddingBottom: 2,
+    gap: 4,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 5,
+    gap: 4,
   },
   letterBtn: {
-    width: 42,
-    height: 46,
+    width: 40,
+    height: 42,
     borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
@@ -155,27 +158,26 @@ const styles = StyleSheet.create({
   disabledBtn: {
     opacity: 0.45,
   },
-  backspaceBtn: {
-    marginTop: 2,
-    backgroundColor: '#E85D04',
+  backspaceKey: {
+    width: 40,
+    height: 42,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.08)',
     borderBottomWidth: 3,
     borderBottomColor: '#A83C00',
-    borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.10)',
-    borderRadius: 12,
-    paddingVertical: 11,
+    backgroundColor: '#E85D04',
     alignItems: 'center',
-    marginHorizontal: 4,
+    justifyContent: 'center',
     shadowColor: '#A83C00',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.35,
     shadowRadius: 4,
     elevation: 4,
   },
-  backspaceText: {
+  backspaceKeyText: {
     color: '#FFFFFF',
     fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 16,
-    letterSpacing: 1,
+    fontSize: 18,
   },
 });

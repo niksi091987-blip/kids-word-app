@@ -654,14 +654,14 @@ export default function GameScreen({ route, navigation }) {
               </View>
 
               <View style={styles.revealedWordsRow}>
-                <View style={styles.revealedWord}>
+                <View style={styles.revealedWordInline}>
                   <Text style={styles.revealedEmoji}>{getWordEmoji(game.puzzle.word1)}</Text>
                   <Text style={styles.revealedText}>{game.puzzle.word1.toUpperCase()}</Text>
                 </View>
                 <View style={styles.revealedDivider}>
                   <Text style={styles.revealedDividerText}>+</Text>
                 </View>
-                <View style={styles.revealedWord}>
+                <View style={styles.revealedWordInline}>
                   <Text style={styles.revealedEmoji}>{getWordEmoji(game.puzzle.word2)}</Text>
                   <Text style={styles.revealedText}>{game.puzzle.word2.toUpperCase()}</Text>
                 </View>
@@ -670,7 +670,7 @@ export default function GameScreen({ route, navigation }) {
               <View style={styles.findingRows}>
                 {[game.puzzle.word1, game.puzzle.word2].map((wordLabel, wi) => (
                   <View key={wi} style={styles.findingRow}>
-                    <Text style={styles.findingRowLabel}>{getWordEmoji(wordLabel)}</Text>
+                    <Text style={styles.findingRowEmoji}>{getWordEmoji(wordLabel)}</Text>
                     <View style={styles.findingTiles}>
                       {game.wordTiles.filter(t => t.wordSource === wi + 1).map(tile => (
                         <Pressable
@@ -680,6 +680,12 @@ export default function GameScreen({ route, navigation }) {
                             const w2 = game.puzzle.word2.toLowerCase();
                             const isCommon = w1.includes(tile.letter) && w2.includes(tile.letter);
                             dispatch({ type: GAME_ACTIONS.TOGGLE_TILE, payload: { tileId: tile.id } });
+                            if (isCommon && !tile.selected) {
+                              const otherSource = tile.wordSource === 1 ? 2 : 1;
+                              game.wordTiles
+                                .filter(t => t.wordSource === otherSource && t.letter === tile.letter && !t.selected)
+                                .forEach(t => dispatch({ type: GAME_ACTIONS.TOGGLE_TILE, payload: { tileId: t.id } }));
+                            }
                             if (!isCommon) {
                               setMascotMsg('❌ Nope! That letter is not in both words!');
                               speakWord('Oops! That letter is not in both words. Try another one!');
@@ -838,7 +844,7 @@ const styles = StyleSheet.create({
 
   header: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 10,
+    paddingHorizontal: 16, paddingVertical: 6,
     borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.30)',
   },
   headerBtn: {
@@ -861,7 +867,7 @@ const styles = StyleSheet.create({
 
   mascotRow: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 8, gap: 8,
+    paddingHorizontal: 16, paddingVertical: 4, gap: 8,
   },
   mascotEmoji: { fontSize: 36 },
   speechBubble: {
@@ -872,10 +878,10 @@ const styles = StyleSheet.create({
   },
   speechText: { fontFamily: 'Nunito_700Bold', fontSize: 13, color: '#1E293B' },
 
-  scroll: { paddingBottom: 16 },
+  scroll: { paddingBottom: 4 },
 
   // Spelling phase
-  spellingSection: { paddingHorizontal: 12, gap: 8 },
+  spellingSection: { paddingHorizontal: 12, gap: 4 },
   wordIndicator: {
     flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingTop: 4,
   },
@@ -888,21 +894,21 @@ const styles = StyleSheet.create({
   wordArrow: { color: 'rgba(255,255,255,0.85)', fontSize: 18 },
 
   picContainer: {
-    alignItems: 'center', paddingVertical: 12,
+    alignItems: 'center', paddingVertical: 6,
     backgroundColor: 'rgba(255,255,255,0.93)', borderRadius: 20, marginHorizontal: 0,
     shadowColor: '#0D47A1', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 8, elevation: 4,
   },
-  bigEmoji: { fontSize: 100 },
+  bigEmoji: { fontSize: 80 },
   tapHint: { fontFamily: 'Nunito_600SemiBold', fontSize: 12, color: '#64748B', marginTop: 4 },
 
   spellingActions: { flexDirection: 'row', gap: 10, paddingHorizontal: 4, paddingTop: 4 },
   alphabetWrapper: { marginTop: 4 },
 
   // Build / common phase
-  buildSection: { paddingHorizontal: 12, gap: 12 },
+  buildSection: { paddingHorizontal: 12, gap: 6 },
 
   instructionCard: {
-    backgroundColor: 'rgba(255,255,255,0.93)', borderRadius: 16, padding: 12, alignItems: 'center', gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.93)', borderRadius: 16, padding: 8, alignItems: 'center', gap: 2,
     shadowColor: '#0D47A1', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.10, shadowRadius: 6, elevation: 3,
   },
   instructionTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 18, color: '#1565C0', textAlign: 'center' },
@@ -911,21 +917,23 @@ const styles = StyleSheet.create({
 
   revealedWordsRow: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.93)', borderRadius: 16, padding: 12,
+    backgroundColor: 'rgba(255,255,255,0.93)', borderRadius: 16, padding: 8,
     shadowColor: '#0D47A1', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.10, shadowRadius: 6, elevation: 3,
   },
   revealedWord: { flex: 1, alignItems: 'center', gap: 2 },
-  revealedEmoji: { fontSize: 28 },
-  revealedLabel: { fontFamily: 'Nunito_700Bold', fontSize: 10, color: '#64748B', letterSpacing: 2 },
-  revealedText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 16, color: '#1E293B' },
+  revealedEmoji: { fontSize: 40 },
+  revealedWordInline: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
+  revealedLabel: { fontFamily: 'Nunito_700Bold', fontSize: 10, color: '#64748B', letterSpacing: 2, textAlign: 'center' },
+  revealedText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 16, color: '#1E293B', textAlign: 'center' },
   revealedDivider: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
   revealedDividerText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 24, color: '#F59E0B' },
 
   findingRows: { gap: 10, width: '100%' },
-  findingRow: { gap: 6 },
-  findingRowLabel: { fontFamily: 'Nunito_800ExtraBold', fontSize: 11, color: '#FFFFFF', letterSpacing: 2,
+  findingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  findingRowEmoji: { fontSize: 30 },
+  findingRowLabel: { fontFamily: 'Nunito_800ExtraBold', fontSize: 13, color: '#FFFFFF', letterSpacing: 1, textAlign: 'center',
     textShadowColor: 'rgba(0,0,0,0.30)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
-  findingTiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  findingTiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center' },
   findTile: {
     width: 44, height: 44, borderRadius: 12, borderWidth: 2,
     borderColor: '#CBD5E1', backgroundColor: '#FFFFFF',
@@ -971,7 +979,7 @@ const styles = StyleSheet.create({
     borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center', justifyContent: 'center',
     shadowColor: '#B45309', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.35, shadowRadius: 5, elevation: 5,
   },
-  hintBtnText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 14, color: '#FFFFFF', letterSpacing: 0.5 },
+  hintBtnText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 14, color: '#7C2D12', letterSpacing: 0.5 },
   clearBtn: {
     backgroundColor: '#EF4444', borderWidth: 0,
     borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center', justifyContent: 'center',
