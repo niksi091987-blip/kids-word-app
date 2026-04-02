@@ -33,7 +33,7 @@ function AppNavigator() {
 
   useEffect(() => {
     AsyncStorage.getItem(INTRO_KEY).then(val => {
-      setInitialRoute('Intro'); // TEMP: force intro for testing — change back to: val ? 'Home' : 'Intro'
+      setInitialRoute(val ? 'Home' : 'Intro');
     });
   }, []);
 
