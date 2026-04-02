@@ -25,6 +25,7 @@ export const WORDS_BY_LENGTH = {
     'ear', 'eat', 'egg', 'end', 'eye',
     'old', 'add', 'arm', 'art', 'ask',
     'owl', 'own', 'oak',
+    'fly', 'paw', 'tub', 'ski', 'yak', 'cub', 'zoo',
   ],
   4: [
     'cake', 'bake', 'fake', 'lake', 'make', 'rake', 'sake', 'take', 'wake',
@@ -78,6 +79,11 @@ export const WORDS_BY_LENGTH = {
     'wide', 'wife', 'wild', 'will', 'wind', 'wine', 'wing', 'wire', 'wise', 'wish',
     'with', 'wood', 'wool', 'word', 'work', 'worm', 'wrap',
     'yard', 'zone', 'zoom',
+    'bull', 'calf', 'claw', 'comb', 'crow', 'dart', 'dusk', 'fawn',
+    'hawk', 'hive', 'horn', 'lamb', 'lava', 'lily', 'mare', 'maze',
+    'mint', 'mule', 'pony', 'silk', 'toad', 'tusk', 'wasp', 'wren',
+    'tram', 'arch', 'clay', 'foal', 'beak', 'barn', 'gull', 'lark',
+    'cave',
   ],
   5: [
     'apple', 'beach', 'brain', 'bread', 'bring', 'build', 'candy', 'chair',
@@ -124,6 +130,10 @@ export const WORDS_BY_LENGTH = {
     'watch', 'water', 'wheel', 'where', 'which', 'while', 'white', 'whole',
     'whose', 'woman', 'world', 'worry', 'worse', 'worst', 'worth', 'would',
     'write', 'wrong', 'young', 'youth',
+    'acorn', 'bison', 'bloom', 'brook', 'camel', 'crane', 'daisy',
+    'ember', 'finch', 'goose', 'hippo', 'holly', 'lotus', 'mango',
+    'maple', 'moose', 'otter', 'petal', 'raven', 'skunk', 'sloth',
+    'stump', 'viper',
   ],
   6: [
     'action', 'animal', 'answer', 'basket', 'battle', 'beauty', 'better',
@@ -180,6 +190,9 @@ export const WORDS_BY_LENGTH = {
     'walker', 'wallet', 'wander', 'warmth', 'wealth', 'weapon', 'weekly',
     'weight', 'window', 'winner', 'winter', 'wisdom', 'within', 'wonder',
     'worker', 'worthy', 'writer', 'yellow', 'zombie',
+    'badger', 'cactus', 'clover', 'donkey', 'falcon', 'iguana',
+    'jaguar', 'jigsaw', 'magnet', 'mitten', 'mussel', 'oyster',
+    'pebble', 'pigeon', 'python', 'salmon', 'walnut',
   ],
   7: [
     'amazing', 'account', 'ancient', 'balance', 'balloon', 'battery', 'bedroom',
@@ -230,6 +243,7 @@ export const WORDS_BY_LENGTH = {
     'village', 'violent', 'visible', 'weather', 'website', 'wedding', 'weekend',
     'welcome', 'welfare', 'western', 'whisper', 'whoever', 'willing', 'winning',
     'without', 'witness', 'working', 'writing',
+    'ostrich', 'pelican', 'sparrow', 'tadpole', 'vulture', 'wildcat',
   ],
   8: [
     'absolute', 'accurate', 'actively', 'actually', 'advanced', 'airplane', 'alphabet',

@@ -87,9 +87,11 @@ function getDifficultyParams(level) {
 }
 
 // Generate a puzzle — only uses words that have emoji mappings
-export function generatePuzzle(level) {
+export function generatePuzzle(level, usedPairs = []) {
   const params = getDifficultyParams(level);
   const { wordLengths, minCommon, maxCommon } = params;
+
+  const usedSet = new Set(usedPairs);
 
   // Collect candidate words that have emoji representations
   let candidates = [];
@@ -104,12 +106,15 @@ export function generatePuzzle(level) {
   // Shuffle candidates
   const shuffled = [...candidates].sort(() => Math.random() - 0.5);
 
+  const pairKey = (w1, w2) => [w1, w2].sort().join('|');
+
   // Try pairs until we find one with the right number of common letters
   for (let i = 0; i < shuffled.length; i++) {
     for (let j = i + 1; j < Math.min(i + 50, shuffled.length); j++) {
       const w1 = shuffled[i];
       const w2 = shuffled[j];
       if (w1 === w2) continue;
+      if (usedSet.has(pairKey(w1, w2))) continue;
       const common = findCommonLetters(w1, w2);
 
       if (common.length >= minCommon && common.length <= maxCommon) {
@@ -127,7 +132,7 @@ export function generatePuzzle(level) {
     }
   }
 
-  // Fallback: relax constraints but still require emojis
+  // Fallback: relax constraints but still require emojis (ignore used pairs to avoid infinite loop)
   for (let i = 0; i < shuffled.length; i++) {
     for (let j = i + 1; j < Math.min(i + 100, shuffled.length); j++) {
       const w1 = shuffled[i];

@@ -26,6 +26,7 @@ const initialProgressState = {
   dailyStreak: 0,
   lastPlayedDate: null,
   badges: [],
+  usedPairs: [],
 };
 
 // ── Action Types ───────────────────────────────────────────────────────────────
@@ -39,6 +40,7 @@ export const PROGRESS_ACTIONS = {
   ADD_BADGE: 'ADD_BADGE',
   UPDATE_STREAK: 'UPDATE_STREAK',
   ADD_WORDS_FOUND: 'ADD_WORDS_FOUND',
+  RECORD_PAIR: 'RECORD_PAIR',
 };
 
 // ── Reducer ────────────────────────────────────────────────────────────────────
@@ -138,6 +140,15 @@ function progressReducer(state, action) {
     case PROGRESS_ACTIONS.ADD_WORDS_FOUND: {
       const { count } = action.payload;
       return { ...state, totalWordsFound: state.totalWordsFound + count };
+    }
+
+    case PROGRESS_ACTIONS.RECORD_PAIR: {
+      const { word1, word2 } = action.payload;
+      const key = [word1, word2].sort().join('|');
+      if (state.usedPairs.includes(key)) return state;
+      const updated = [...state.usedPairs, key];
+      // Keep at most 500 entries to avoid unbounded growth
+      return { ...state, usedPairs: updated.length > 500 ? updated.slice(-400) : updated };
     }
 
     case PROGRESS_ACTIONS.RESET_ALL:

@@ -177,7 +177,10 @@ export default function GameScreen({ route, navigation }) {
 
     const t = setTimeout(() => {
       if (!isMountedRef.current) return;
-      const puzzle = replayPuzzle || generatePuzzle(level);
+      const puzzle = replayPuzzle || generatePuzzle(level, progress.usedPairs || []);
+      if (!replayPuzzle) {
+        progressDispatch({ type: PROGRESS_ACTIONS.RECORD_PAIR, payload: { word1: puzzle.word1, word2: puzzle.word2 } });
+      }
       const timerSeconds = getTimerSeconds(level);
       dispatch({ type: GAME_ACTIONS.START_PUZZLE, payload: { puzzle, timerSeconds } });
       puzzleStarted.current = true;
@@ -299,20 +302,12 @@ export default function GameScreen({ route, navigation }) {
         wordsFound: currentGame.foundWords, timeTaken,
         possibleWords: currentGame.puzzle?.possibleWords || [],
         puzzle: currentGame.puzzle,
+        timerRanOut,
+        allFound,
       });
     };
 
-    if (allFound) {
-      speakWord('Amazing! You found all the words! You did great!', {
-        onDone: () => setTimeout(goToResult, 500),
-      });
-    } else if (timerRanOut) {
-      speakWord('Time is up! Great try! See how many words you found!', {
-        onDone: () => setTimeout(goToResult, 500),
-      });
-    } else {
-      setTimeout(goToResult, 2000);
-    }
+    goToResult();
   }, [level, timer, progressDispatch, navigation, play, speakWord]);
 
   // ── Spelling handlers ─────────────────────────────────────────────────────────
@@ -346,10 +341,10 @@ export default function GameScreen({ route, navigation }) {
       dispatch({ type: GAME_ACTIONS.SPELLING_CORRECT, payload: { wordNum: game.spellingTarget, points } });
 
       const correctMsg = game.spellingAttempts === 0
-        ? 'Perfect! Well done!'
+        ? 'Hoot hoot! You nailed it!'
         : game.spellingAttempts === 1
-          ? 'Great job! You got it!'
-          : 'Good try! You did it!';
+          ? 'Yes! You got it!'
+          : 'There you go! You did it!';
 
       // Chain: correctMsg → target word → advance phase
       speakWord(correctMsg, {
@@ -381,10 +376,10 @@ export default function GameScreen({ route, navigation }) {
                     // Both words done — introduce common letter hunt
                     setMascotMsg('🕵️ Find the matching letters!');
                     setTimeout(() => {
-                      speakWord('Amazing! You spelled both words! Now be a letter detective!', {
+                      speakWord("Whoo! You spelled both words! Now let's be letter detectives!", {
                         onDone: () => {
                           setTimeout(() => {
-                            speakWord('Can you find the letters that are hiding in BOTH words? Tap them!');
+                            speakWord("Look carefully. Can you spot the letters that show up in both words?");
                           }, 300);
                         },
                       });
@@ -405,10 +400,10 @@ export default function GameScreen({ route, navigation }) {
 
       const attempts = game.spellingAttempts;
       const wrongMsg = attempts === 0
-        ? 'Oops! Try again!'
+        ? 'Oops! Give it another go!'
         : attempts === 1
-          ? 'Not quite! You can do it!'
-          : 'Keep trying! You are almost there!';
+          ? 'Almost! I know you can get it!'
+          : "So close! You're nearly there!";
 
       // Speak wrong message, then reset after it finishes
       speakWord(wrongMsg, {
@@ -600,11 +595,11 @@ export default function GameScreen({ route, navigation }) {
                       dispatch({ type: GAME_ACTIONS.SET_SPELLING_SLOTS, payload: corrected });
                       // Speak correction fully, then hint correct letter via onDone
                       const wrongLetter = slots[firstWrongIdx].toUpperCase();
-                      speakWord(`Oh! ${wrongLetter} is not correct. Let me fix it.`, {
+                      speakWord(`Hmm, not quite. Let me give you a little hint!`, {
                         onDone: () => {
                           setTimeout(() => {
                             speakPhonics(t[firstWrongIdx]);
-                            setTimeout(() => speakWord(`This spot needs the sound ${t[firstWrongIdx]}`), 1200);
+                            setTimeout(() => speakWord(`Try the sound ${t[firstWrongIdx]}`), 1200);
                           }, 400);
                         },
                       });
@@ -613,7 +608,7 @@ export default function GameScreen({ route, navigation }) {
                       const nextIdx = slots.indexOf('');
                       if (nextIdx === -1) return; // all filled and correct
                       speakPhonics(t[nextIdx]);
-                      setTimeout(() => speakWord(`Next sound is ${t[nextIdx]}`), 1200);
+                      setTimeout(() => speakWord(`The next sound is ${t[nextIdx]}`), 1200);
                     }
                   }}
                   style={styles.hintBtn}
@@ -680,15 +675,25 @@ export default function GameScreen({ route, navigation }) {
                             const w2 = game.puzzle.word2.toLowerCase();
                             const isCommon = w1.includes(tile.letter) && w2.includes(tile.letter);
                             dispatch({ type: GAME_ACTIONS.TOGGLE_TILE, payload: { tileId: tile.id } });
-                            if (isCommon && !tile.selected) {
+                            if (isCommon) {
                               const otherSource = tile.wordSource === 1 ? 2 : 1;
-                              game.wordTiles
-                                .filter(t => t.wordSource === otherSource && t.letter === tile.letter && !t.selected)
-                                .forEach(t => dispatch({ type: GAME_ACTIONS.TOGGLE_TILE, payload: { tileId: t.id } }));
+                              if (!tile.selected) {
+                                // Selecting: auto-select exactly one matching tile in the other word
+                                const match = game.wordTiles.find(
+                                  t => t.wordSource === otherSource && t.letter === tile.letter && !t.selected
+                                );
+                                if (match) dispatch({ type: GAME_ACTIONS.TOGGLE_TILE, payload: { tileId: match.id } });
+                              } else {
+                                // Deselecting: auto-deselect one matching tile in the other word
+                                const match = game.wordTiles.find(
+                                  t => t.wordSource === otherSource && t.letter === tile.letter && t.selected
+                                );
+                                if (match) dispatch({ type: GAME_ACTIONS.TOGGLE_TILE, payload: { tileId: match.id } });
+                              }
                             }
                             if (!isCommon) {
                               setMascotMsg('❌ Nope! That letter is not in both words!');
-                              speakWord('Oops! That letter is not in both words. Try another one!');
+                              speakWord("Hmm, that one's only in one word. Look for one that's in both!");
                               setTimeout(() => {
                                 dispatch({ type: GAME_ACTIONS.CLEAR_TILE_WRONG, payload: { tileId: tile.id } });
                                 setMascotMsg('🕵️ Find the matching letters!');
@@ -723,7 +728,7 @@ export default function GameScreen({ route, navigation }) {
                       .map(l => l.toUpperCase())
                       .join(', ');
                     setMascotMsg(`🔍 Keep looking! Find the letter${missing.length > 1 ? 's' : ''}: ${missing}`);
-                    speakWord(`Keep looking! You still need to find some matching letters. Can you find them in both words?`);
+                    speakWord("Keep going! There are still some sneaky letters hiding in both words. Can you spot them?");
                     return;
                   }
                   dispatch({ type: GAME_ACTIONS.START_BUILDING });
