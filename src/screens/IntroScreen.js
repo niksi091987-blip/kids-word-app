@@ -538,7 +538,7 @@ function TapToStart({ onStart }) {
           <Animated.View style={pulseAnim}>
             <View style={tap.tapPill}>
               <Animated.Text style={[tap.stars, starAnim]}>✦ ✦ ✦</Animated.Text>
-              <Text style={tap.tapTxt}>Tap anywhere to start!</Text>
+              <Text style={tap.tapTxt}>Ready to spell? Let's Go!</Text>
               <Animated.Text style={[tap.stars, starAnim]}>✦ ✦ ✦</Animated.Text>
             </View>
           </Animated.View>
