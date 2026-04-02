@@ -122,10 +122,10 @@ export default function TimerBar({ totalSeconds, secondsLeft }) {
 
   // Counter turns red in warning zone
   const counterColor = fraction < TIMER_COLOR_THRESHOLDS.warning
-    ? '#FF4444'
+    ? '#DC2626'
     : fraction < TIMER_COLOR_THRESHOLDS.mid
-      ? '#FFD700'
-      : '#FFFFFF';
+      ? '#D97706'
+      : '#1565C0';
 
   return (
     <View style={styles.row}>
@@ -168,11 +168,11 @@ const styles = StyleSheet.create({
   track: {
     flex: 1,
     height: BAR_HEIGHT,
-    backgroundColor: 'rgba(255,255,255,0.10)',
+    backgroundColor: 'rgba(0,0,0,0.08)',
     borderRadius: BAR_HEIGHT / 2,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
+    borderColor: 'rgba(0,0,0,0.12)',
   },
   bar: {
     height: '100%',

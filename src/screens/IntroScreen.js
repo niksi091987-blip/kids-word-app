@@ -60,7 +60,7 @@ const BG = [
   ['#BF360C', '#E64A19', '#FF7043', '#FFCCBC'],   // ch1: warm sunset orange
   ['#4A148C', '#7B1FA2', '#BA68C8', '#E1BEE7'],   // ch2: magic purple
   ['#1B5E20', '#2E7D32', '#66BB6A', '#C8E6C9'],   // ch3: fresh green
-  ['#F57F17', '#F9A825', '#FFD600', '#FFF9C4'],   // ch4: golden celebration
+  ['#1A0533', '#3B0F78', '#6B21A8', '#9333EA'],   // ch4: deep purple — gold stars pop
 ];
 
 const MOODS    = ['wave', 'excited', 'think', 'happy', 'celebrate'];
@@ -384,7 +384,7 @@ function StepCard({ emoji, num, title, sub, colors, delay, fromRight }) {
 function Ch0_Welcome() {
   return (
     <View style={{ alignItems:'center', gap:12 }}>
-      <StepCard num="1" emoji="✏️" title="Spell the Word"      sub="Tap letters to spell what you see"        colors={['#2563EB','#1D4ED8']} delay={150} fromRight={false} />
+      <StepCard num="1" emoji="✏️" title="Spell the Word"      sub="Tap letters to spell what you see"        colors={['#F97316','#EA580C']} delay={150} fromRight={false} />
       <StepCard num="2" emoji="🔍" title="Find the Match"      sub="Spot letters that appear in both words"    colors={['#7C3AED','#5B21B6']} delay={450} fromRight={true}  />
       <StepCard num="3" emoji="🏗️" title="Build New Words"    sub="Use matched letters to score big points"   colors={['#059669','#047857']} delay={750} fromRight={false} />
     </View>
@@ -859,8 +859,8 @@ export default function IntroScreen({ navigation }) {
 
       <SafeAreaView style={{ flex: 1 }}>
 
-        {/* ── Persistent logo badge ── */}
-        <LexieBadge style={{ marginTop: 4 }} />
+        {/* ── Persistent logo badge (hidden on end screen — it shows large there) ── */}
+        {!isDone && <LexieBadge style={{ marginTop: 4 }} />}
 
         {/* ── Top bar: skip + chapter dots ── */}
         <View style={s.topBar}>
@@ -901,20 +901,24 @@ export default function IntroScreen({ navigation }) {
           </Animated.View>
         )}
 
-        {/* ── END: LET'S PLAY button ── */}
+        {/* ── END: LET'S PLAY screen ── */}
         {isDone && (
           <View style={s.endScreen}>
-            {/* Logo badge */}
-            <View style={s.endLogoBadge}>
-              <Text style={s.endLogoSmall}>L E X I E ' S</Text>
-              <Text style={s.endLogoBig}>WORD LAB</Text>
-            </View>
+            {/* Large logo — same as HomeScreen hero */}
+            <LexieBadge large style={{ marginBottom: 4 }} />
+
+            {/* Celebrating owl */}
             <Animated.View style={[{ alignItems: 'center' }, lexieAnim]}>
-              <Lexie mood="celebrate" size={160} />
+              <Lexie mood="celebrate" size={150} />
             </Animated.View>
+
+            {/* Tagline */}
+            <Text style={s.endTagline}>Ready to become a Word Legend?</Text>
+
+            {/* LET'S PLAY button */}
             <Animated.View style={[s.playBtnWrap, playAnim]}>
               <Pressable style={s.playBtn} onPress={handlePlay}>
-                <LinearGradient colors={['#22C55E','#16A34A']} style={s.playBtnGrad}>
+                <LinearGradient colors={['#F97316','#EA580C']} style={s.playBtnGrad}>
                   <Text style={s.playTxt}>LET'S PLAY!</Text>
                 </LinearGradient>
               </Pressable>
@@ -1041,7 +1045,8 @@ const s = StyleSheet.create({
   labelRow:  { alignItems:'center', paddingTop:6, paddingBottom:4, minHeight:50, justifyContent:'center' },
   demoArea:  { flex:1, alignItems:'center', justifyContent:'center', paddingHorizontal:20 },
   charArea:  { paddingHorizontal:14, paddingTop:4, paddingBottom:8, alignItems:'center' },
-  endScreen: { flex:1, alignItems:'center', justifyContent:'center', gap:28 },
+  endScreen: { flex:1, alignItems:'center', justifyContent:'center', gap:20, paddingHorizontal:24 },
+  endTagline: { fontFamily:'Nunito_700Bold', fontSize:15, color:'rgba(255,255,255,0.85)', textAlign:'center', letterSpacing:0.3 },
   playBtnWrap: { width:SW * 0.80 },
   playBtn:   {
     borderRadius:36, overflow:'hidden',

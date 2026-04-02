@@ -9,15 +9,9 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-const NEON_COLORS = ['#FF006E', '#00D4FF', '#39FF14', '#FFD700', '#BF5AF2', '#FF6B00'];
-const NEON_BG = [
-  'rgba(255,0,110,0.25)',
-  'rgba(0,212,255,0.25)',
-  'rgba(57,255,20,0.25)',
-  'rgba(255,215,0,0.25)',
-  'rgba(191,90,242,0.25)',
-  'rgba(255,107,0,0.25)',
-];
+// Vibrant readable colors — work on white backgrounds
+const KEY_COLORS  = ['#E85D04','#2D9CDB','#27AE60','#8B5CF6','#E91E8C','#F59E0B'];
+const KEY_SHADOWS = ['#A83C00','#1A6FA1','#1A7A42','#5B28B0','#A0105E','#B87200'];
 
 const ROWS = [
   ['A','B','C','D','E','F','G'],
@@ -26,28 +20,25 @@ const ROWS = [
   ['V','W','X','Y','Z'],
 ];
 
-function getLetterColor(letter) {
-  return NEON_COLORS[letter.charCodeAt(0) % NEON_COLORS.length];
+function getColor(letter) {
+  return KEY_COLORS[letter.charCodeAt(0) % KEY_COLORS.length];
 }
-function getLetterBg(letter) {
-  return NEON_BG[letter.charCodeAt(0) % NEON_BG.length];
+function getShadow(letter) {
+  return KEY_SHADOWS[letter.charCodeAt(0) % KEY_SHADOWS.length];
 }
 
 function LetterButton({ letter, onPress, disabled, highlight }) {
   const scale = useSharedValue(1);
-
-  const color = getLetterColor(letter);
-  const bg = getLetterBg(letter);
+  const color  = getColor(letter);
+  const shadow = getShadow(letter);
 
   useEffect(() => {
     if (highlight) {
       scale.value = withRepeat(
         withSequence(
-          withSpring(1.18, { damping: 5, stiffness: 200 }),
-          withSpring(1, { damping: 6 }),
-        ),
-        -1,
-        true,
+          withSpring(1.20, { damping: 5, stiffness: 200 }),
+          withSpring(1,    { damping: 6 }),
+        ), -1, true,
       );
     } else {
       scale.value = withSpring(1);
@@ -61,43 +52,39 @@ function LetterButton({ letter, onPress, disabled, highlight }) {
   function handlePress() {
     if (disabled) return;
     scale.value = withSequence(
-      withSpring(0.80, { damping: 8, stiffness: 400 }),
-      withSpring(1.15, { damping: 5, stiffness: 250 }),
-      withSpring(1, { damping: 8 }),
+      withSpring(0.78, { damping: 8, stiffness: 400 }),
+      withSpring(1.12, { damping: 5, stiffness: 250 }),
+      withSpring(1,    { damping: 8 }),
     );
     onPress(letter.toLowerCase());
   }
+
+  // highlight = pulse with colored bg; normal = white key with color letter; disabled = gray
+  const keyBg     = disabled ? '#E9EDEF' : highlight ? color : '#FFFFFF';
+  const letterClr = disabled ? '#B0BEC5' : highlight ? '#FFFFFF' : color;
+  const borderClr = disabled ? '#CFD8DC' : shadow;
 
   return (
     <Pressable onPress={handlePress} disabled={disabled}>
       <Animated.View style={[
         styles.letterBtn,
         {
-          backgroundColor: disabled ? 'rgba(255,255,255,0.04)' : bg,
-          borderColor: highlight ? '#FFD700' : color,
-          borderWidth: highlight ? 3 : 2,
+          backgroundColor: keyBg,
+          borderBottomColor: borderClr,
+          borderBottomWidth: disabled ? 2 : 3,
+          borderColor: disabled ? '#CFD8DC' : highlight ? shadow : 'rgba(0,0,0,0.08)',
+        },
+        !disabled && {
+          shadowColor: highlight ? color : 'rgba(0,0,0,0.18)',
+          shadowOffset: { width: 0, height: highlight ? 4 : 2 },
+          shadowOpacity: highlight ? 0.5 : 1,
+          shadowRadius: highlight ? 8 : 3,
+          elevation: highlight ? 8 : 3,
         },
         disabled && styles.disabledBtn,
-        highlight && {
-          shadowColor: '#FFD700',
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.9,
-          shadowRadius: 10,
-          elevation: 10,
-        },
-        !disabled && !highlight && {
-          shadowColor: color,
-          shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.3,
-          shadowRadius: 4,
-          elevation: 4,
-        },
         animStyle,
       ]}>
-        <Text style={[
-          styles.letterText,
-          { color: disabled ? 'rgba(255,255,255,0.20)' : color },
-        ]}>
+        <Text style={[styles.letterText, { color: letterClr }]}>
           {letter}
         </Text>
       </Animated.View>
@@ -132,8 +119,11 @@ export default function AlphabetPanel({ onLetterPress, onBackspace, disabled, hi
           ))}
         </View>
       ))}
-      <Pressable onPress={handleBack} disabled={disabled} style={styles.backspaceBtn}>
-        <Text style={[styles.backspaceText, disabled && { opacity: 0.3 }]}>⌫  BACK</Text>
+      <Pressable onPress={handleBack} disabled={disabled} style={[
+        styles.backspaceBtn,
+        disabled && { opacity: 0.40 },
+      ]}>
+        <Text style={styles.backspaceText}>⌫  BACK</Text>
       </Pressable>
     </View>
   );
@@ -152,8 +142,9 @@ const styles = StyleSheet.create({
   },
   letterBtn: {
     width: 42,
-    height: 44,
+    height: 46,
     borderRadius: 10,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -162,21 +153,28 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito_800ExtraBold',
   },
   disabledBtn: {
-    opacity: 0.35,
+    opacity: 0.45,
   },
   backspaceBtn: {
     marginTop: 2,
-    backgroundColor: 'rgba(255,0,110,0.18)',
-    borderWidth: 2,
-    borderColor: '#FF006E',
+    backgroundColor: '#E85D04',
+    borderBottomWidth: 3,
+    borderBottomColor: '#A83C00',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.10)',
     borderRadius: 12,
-    paddingVertical: 10,
+    paddingVertical: 11,
     alignItems: 'center',
     marginHorizontal: 4,
+    shadowColor: '#A83C00',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.35,
+    shadowRadius: 4,
+    elevation: 4,
   },
   backspaceText: {
-    color: '#FF006E',
-    fontFamily: 'Nunito_700Bold',
+    color: '#FFFFFF',
+    fontFamily: 'Nunito_800ExtraBold',
     fontSize: 16,
     letterSpacing: 1,
   },

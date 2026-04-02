@@ -40,20 +40,45 @@ import FoundWordsList from '../components/FoundWordsList';
 import GameButton from '../components/GameButton';
 
 // ── Theme ──────────────────────────────────────────────────────────────────────
-const BG = ['#0D0B1E', '#1A1035', '#251848'];
+const BG = ['#1565C0', '#1E88E5', '#42A5F5', '#7EC8F0'];
 
 const LEVEL_THEMES = [
-  { mascot: '🐱', name: 'Kitty',   color: '#FF006E' },
-  { mascot: '🐶', name: 'Puppy',   color: '#00D4FF' },
-  { mascot: '🐰', name: 'Bunny',   color: '#39FF14' },
-  { mascot: '🦊', name: 'Foxy',    color: '#FFD700' },
-  { mascot: '🐸', name: 'Froggy',  color: '#BF5AF2' },
-  { mascot: '🦉', name: 'Owly',    color: '#00FFDD' },
-  { mascot: '🐧', name: 'Penny',   color: '#00D4FF' },
-  { mascot: '🦋', name: 'Flutter', color: '#FF006E' },
-  { mascot: '🐬', name: 'Splash',  color: '#00D4FF' },
-  { mascot: '🦄', name: 'Sparkle', color: '#BF5AF2' },
+  { mascot: '🐱', name: 'Kitty',   color: '#E85D04' },
+  { mascot: '🐶', name: 'Puppy',   color: '#2D9CDB' },
+  { mascot: '🐰', name: 'Bunny',   color: '#27AE60' },
+  { mascot: '🦊', name: 'Foxy',    color: '#F59E0B' },
+  { mascot: '🐸', name: 'Froggy',  color: '#8B5CF6' },
+  { mascot: '🦉', name: 'Owly',    color: '#0891B2' },
+  { mascot: '🐧', name: 'Penny',   color: '#2D9CDB' },
+  { mascot: '🦋', name: 'Flutter', color: '#E91E8C' },
+  { mascot: '🐬', name: 'Splash',  color: '#0077B6' },
+  { mascot: '🦄', name: 'Sparkle', color: '#8B5CF6' },
 ];
+
+// ── Background components (match HomeScreen) ──────────────────────────────────
+const STAR_DATA = Array.from({ length: 18 }, (_, i) => ({
+  x: (i * 137.5) % 100, y: (i * 61.8) % 75,
+  size: 2 + (i % 3) * 1.5, delay: (i * 320) % 2800, dur: 1200 + (i % 5) * 400,
+}));
+function Twinkle({ x, y, size, delay, dur }) {
+  const op = useSharedValue(0.1);
+  useEffect(() => {
+    op.value = withDelay(delay, withRepeat(
+      withSequence(
+        withTiming(0.85, { duration: dur, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0.1,  { duration: dur, easing: Easing.inOut(Easing.ease) }),
+      ), -1, false,
+    ));
+  }, []);
+  const anim = useAnimatedStyle(() => ({ opacity: op.value }));
+  return (
+    <Animated.View style={[{
+      position:'absolute', left:`${x}%`, top:`${y}%`,
+      width:size, height:size, borderRadius:size/2,
+      backgroundColor:'rgba(255,255,255,0.95)',
+    }, anim]} />
+  );
+}
 
 const MASCOT_MESSAGES = {
   spelling_word1:   '🎤 Spell the first picture!',
@@ -103,24 +128,7 @@ export default function GameScreen({ route, navigation }) {
   const star2 = useSharedValue(0);
   const star3 = useSharedValue(0);
 
-  // Floating background stars
-  const bg1Y = useSharedValue(0);
-  const bg2Y = useSharedValue(0);
-  const bg3Y = useSharedValue(0);
-
   useEffect(() => {
-    bg1Y.value = withRepeat(withSequence(
-      withTiming(-12, { duration: 2800, easing: Easing.inOut(Easing.ease) }),
-      withTiming(0, { duration: 2800, easing: Easing.inOut(Easing.ease) }),
-    ), -1, true);
-    bg2Y.value = withRepeat(withSequence(
-      withTiming(-8, { duration: 3600, easing: Easing.inOut(Easing.ease) }),
-      withTiming(0, { duration: 3600, easing: Easing.inOut(Easing.ease) }),
-    ), -1, true);
-    bg3Y.value = withRepeat(withSequence(
-      withTiming(-15, { duration: 4200, easing: Easing.inOut(Easing.ease) }),
-      withTiming(0, { duration: 4200, easing: Easing.inOut(Easing.ease) }),
-    ), -1, true);
     scoreGlow.value = withRepeat(withSequence(
       withTiming(1, { duration: 1500 }),
       withTiming(0.3, { duration: 1500 }),
@@ -147,9 +155,6 @@ export default function GameScreen({ route, navigation }) {
     ), -1);
   }, []);
 
-  const bg1Style = useAnimatedStyle(() => ({ transform: [{ translateY: bg1Y.value }] }));
-  const bg2Style = useAnimatedStyle(() => ({ transform: [{ translateY: bg2Y.value }] }));
-  const bg3Style = useAnimatedStyle(() => ({ transform: [{ translateY: bg3Y.value }] }));
   const scoreGlowStyle = useAnimatedStyle(() => ({
     opacity: scoreGlow.value,
     transform: [{ scale: 0.98 + scoreGlow.value * 0.04 }],
@@ -496,38 +501,34 @@ export default function GameScreen({ route, navigation }) {
   // ── Loading state ─────────────────────────────────────────────────────────────
   if (!game.puzzle) {
     return (
-      <LinearGradient colors={BG} style={styles.gradient}>
+      <View style={styles.root}>
+        <LinearGradient colors={BG} style={StyleSheet.absoluteFill} />
         <View style={styles.loading}>
           <Text style={styles.loadingEmoji}>🎮</Text>
           <Text style={styles.loadingText}>Loading puzzle...</Text>
           <Text style={styles.loadingDots}>✨ ⭐ 🌟</Text>
         </View>
-      </LinearGradient>
+      </View>
     );
   }
 
   return (
-    <LinearGradient colors={BG} style={styles.gradient}>
+    <View style={styles.root}>
+      <LinearGradient colors={BG} style={StyleSheet.absoluteFill} />
+      {STAR_DATA.map((st, i) => <Twinkle key={i} {...st} />)}
       <SafeAreaView style={styles.safe}>
-        {/* Floating background decorations */}
-        <Animated.Text style={[styles.bgStar, styles.bgStar1, bg1Style]}>⭐</Animated.Text>
-        <Animated.Text style={[styles.bgStar, styles.bgStar2, bg2Style]}>✨</Animated.Text>
-        <Animated.Text style={[styles.bgStar, styles.bgStar3, bg3Style]}>🌟</Animated.Text>
 
         {/* Header */}
         <View style={styles.header}>
           <Pressable onPress={handleHome} style={styles.headerBtn} hitSlop={12}>
-            <Ionicons name="home" size={24} color="#00D4FF" />
+            <Ionicons name="home" size={24} color="#1565C0" />
           </Pressable>
           <View style={styles.headerCenter}>
             <Text style={[styles.levelText, { color: theme.color }]}>
               {theme.mascot} LEVEL {level}
             </Text>
           </View>
-          <Animated.View style={[styles.scoreCard, scoreGlowStyle, {
-            shadowColor: '#FFD700', shadowOffset: { width: 0, height: 0 },
-            shadowOpacity: 0.8, shadowRadius: 8, elevation: 8,
-          }]}>
+          <Animated.View style={[styles.scoreCard, scoreGlowStyle]}>
             <Text style={styles.scoreText}>⭐ {game.score}</Text>
           </Animated.View>
         </View>
@@ -625,7 +626,7 @@ export default function GameScreen({ route, navigation }) {
                   disabled={!allSlotsFilled}
                   style={[styles.checkBtn, !allSlotsFilled && styles.checkBtnDisabled]}
                 >
-                  <Text style={styles.checkBtnText}>CHECK ✅</Text>
+                  <Text style={[styles.checkBtnText, !allSlotsFilled && { color: '#94A3B8' }]}>CHECK ✅</Text>
                 </Pressable>
               </View>
 
@@ -785,17 +786,17 @@ export default function GameScreen({ route, navigation }) {
                 </Pressable>
                 <Pressable
                   onPress={handleClear}
-                  style={styles.clearBtn}
+                  style={[styles.clearBtn, builtWordCount === 0 && styles.clearBtnDisabled]}
                   disabled={builtWordCount === 0}
                 >
-                  <Text style={styles.clearBtnText}>⌫ CLEAR</Text>
+                  <Text style={[styles.clearBtnText, builtWordCount === 0 && { color: '#94A3B8' }]}>⌫ CLEAR</Text>
                 </Pressable>
                 <Pressable
                   onPress={handleSubmitWord}
                   disabled={!canSubmitWord}
                   style={[styles.submitBtn, !canSubmitWord && styles.submitBtnDisabled]}
                 >
-                  <Text style={styles.submitBtnText}>CHECK ✅</Text>
+                  <Text style={[styles.submitBtnText, !canSubmitWord && { color: '#94A3B8' }]}>CHECK ✅</Text>
                 </Pressable>
               </View>
 
@@ -820,376 +821,176 @@ export default function GameScreen({ route, navigation }) {
           )}
         </ScrollView>
       </SafeAreaView>
-    </LinearGradient>
+    </View>
   );
 }
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  gradient: { flex: 1 },
+  root: { flex: 1 },
   safe: { flex: 1 },
 
-  // Loading
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
   loadingEmoji: { fontSize: 72 },
-  loadingText: { fontFamily: 'Nunito_700Bold', fontSize: 20, color: '#FFFFFF' },
+  loadingText: { fontFamily: 'Nunito_700Bold', fontSize: 20, color: '#fff',
+    textShadowColor:'rgba(0,0,0,0.2)', textShadowOffset:{width:0,height:1}, textShadowRadius:3 },
   loadingDots: { fontSize: 28, letterSpacing: 8 },
 
-  // Background stars
-  bgStar: { position: 'absolute', zIndex: 0, opacity: 0.12, fontSize: 28 },
-  bgStar1: { top: 80, left: 20 },
-  bgStar2: { top: 160, right: 24 },
-  bgStar3: { top: 260, left: 60 },
-
-  // Header
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.10)',
-    backgroundColor: 'rgba(13,11,30,0.7)',
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 10,
+    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.30)',
   },
   headerBtn: {
-    width: 44,
-    height: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,212,255,0.12)',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(0,212,255,0.30)',
+    width: 42, height: 42, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.92)',
+    shadowColor: '#0D47A1', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 3,
   },
   headerCenter: { flex: 1, alignItems: 'center' },
   levelText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 16,
-    letterSpacing: 1,
+    fontFamily: 'Nunito_800ExtraBold', fontSize: 16, letterSpacing: 1,
+    textShadowColor: 'rgba(0,0,0,0.50)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 5,
   },
   scoreCard: {
-    backgroundColor: 'rgba(255,215,0,0.15)',
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    borderRadius: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    backgroundColor: 'rgba(255,255,255,0.92)', borderWidth: 2, borderColor: '#F59E0B',
+    borderRadius: 12, paddingHorizontal: 10, paddingVertical: 5,
+    shadowColor: '#F59E0B', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 4,
   },
-  scoreText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 14,
-    color: '#FFD700',
-  },
+  scoreText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 14, color: '#D97706' },
 
-  // Mascot
   mascotRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 8,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 8, gap: 8,
   },
   mascotEmoji: { fontSize: 36 },
   speechBubble: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 2,
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    flex: 1, backgroundColor: 'rgba(255,255,255,0.93)',
+    borderWidth: 2, borderRadius: 16,
+    paddingHorizontal: 12, paddingVertical: 8,
+    shadowColor: '#0D47A1', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 4, elevation: 3,
   },
-  speechText: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 13,
-    color: '#FFFFFF',
-  },
+  speechText: { fontFamily: 'Nunito_700Bold', fontSize: 13, color: '#1E293B' },
 
   scroll: { paddingBottom: 16 },
 
-  // ── Spelling phase ────────────────────────────────────────────────────────────
+  // Spelling phase
   spellingSection: { paddingHorizontal: 12, gap: 8 },
-
   wordIndicator: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    paddingTop: 4,
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8, paddingTop: 4,
   },
-  wordBadge: {
-    paddingHorizontal: 14,
-    paddingVertical: 5,
-    borderRadius: 20,
-    borderWidth: 2,
-  },
-  wordBadgeActive: { borderColor: '#00D4FF', backgroundColor: 'rgba(0,212,255,0.2)' },
-  wordBadgeDone: { borderColor: '#39FF14', backgroundColor: 'rgba(57,255,20,0.2)' },
-  wordBadgeInactive: { borderColor: 'rgba(255,255,255,0.20)', backgroundColor: 'rgba(255,255,255,0.05)' },
-  wordBadgeText: { fontFamily: 'Nunito_700Bold', fontSize: 12, color: '#FFFFFF', letterSpacing: 1 },
-  wordArrow: { color: 'rgba(255,255,255,0.40)', fontSize: 18 },
+  wordBadge: { paddingHorizontal: 14, paddingVertical: 5, borderRadius: 20, borderWidth: 2 },
+  wordBadgeActive: { borderColor: '#7EC8F0', backgroundColor: 'rgba(45,156,219,0.50)' },
+  wordBadgeDone: { borderColor: '#86EFAC', backgroundColor: 'rgba(39,174,96,0.55)' },
+  wordBadgeInactive: { borderColor: 'rgba(255,255,255,0.55)', backgroundColor: 'rgba(255,255,255,0.18)' },
+  wordBadgeText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 12, color: '#fff', letterSpacing: 1,
+    textShadowColor: 'rgba(0,0,0,0.30)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
+  wordArrow: { color: 'rgba(255,255,255,0.85)', fontSize: 18 },
 
-  picContainer: { alignItems: 'center', paddingVertical: 8 },
+  picContainer: {
+    alignItems: 'center', paddingVertical: 12,
+    backgroundColor: 'rgba(255,255,255,0.93)', borderRadius: 20, marginHorizontal: 0,
+    shadowColor: '#0D47A1', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.12, shadowRadius: 8, elevation: 4,
+  },
   bigEmoji: { fontSize: 100 },
-  tapHint: {
-    fontFamily: 'Nunito_600SemiBold',
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.45)',
-    marginTop: 4,
-  },
+  tapHint: { fontFamily: 'Nunito_600SemiBold', fontSize: 12, color: '#64748B', marginTop: 4 },
 
-  spellingActions: {
-    flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 4,
-    paddingTop: 4,
-  },
-
+  spellingActions: { flexDirection: 'row', gap: 10, paddingHorizontal: 4, paddingTop: 4 },
   alphabetWrapper: { marginTop: 4 },
 
-  // ── Word building phase ───────────────────────────────────────────────────────
+  // Build / common phase
   buildSection: { paddingHorizontal: 12, gap: 12 },
 
   instructionCard: {
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 14,
-    padding: 12,
-    alignItems: 'center',
-    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.93)', borderRadius: 16, padding: 12, alignItems: 'center', gap: 4,
+    shadowColor: '#0D47A1', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.10, shadowRadius: 6, elevation: 3,
   },
-  instructionTitle: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 18,
-    color: '#FFD700',
-    textAlign: 'center',
-  },
-  instructionText: {
-    fontFamily: 'Nunito_600SemiBold',
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.85)',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  instructionBold: {
-    fontFamily: 'Nunito_800ExtraBold',
-    color: '#39FF14',
-    fontSize: 16,
-  },
+  instructionTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 18, color: '#1565C0', textAlign: 'center' },
+  instructionText: { fontFamily: 'Nunito_600SemiBold', fontSize: 14, color: '#334155', textAlign: 'center', lineHeight: 20 },
+  instructionBold: { fontFamily: 'Nunito_800ExtraBold', color: '#27AE60', fontSize: 16 },
 
   revealedWordsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    borderRadius: 16,
-    padding: 12,
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.93)', borderRadius: 16, padding: 12,
+    shadowColor: '#0D47A1', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.10, shadowRadius: 6, elevation: 3,
   },
   revealedWord: { flex: 1, alignItems: 'center', gap: 2 },
   revealedEmoji: { fontSize: 28 },
-  revealedLabel: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.40)',
-    letterSpacing: 2,
-  },
-  revealedText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 16,
-    color: '#FFFFFF',
-  },
-  revealedDivider: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 8,
-  },
-  revealedDividerText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 24,
-    color: '#FFD700',
-  },
+  revealedLabel: { fontFamily: 'Nunito_700Bold', fontSize: 10, color: '#64748B', letterSpacing: 2 },
+  revealedText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 16, color: '#1E293B' },
+  revealedDivider: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8 },
+  revealedDividerText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 24, color: '#F59E0B' },
 
   findingRows: { gap: 10, width: '100%' },
   findingRow: { gap: 6 },
-  findingRowLabel: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 10,
-    color: 'rgba(255,255,255,0.40)',
-    letterSpacing: 2,
-  },
+  findingRowLabel: { fontFamily: 'Nunito_800ExtraBold', fontSize: 11, color: '#FFFFFF', letterSpacing: 2,
+    textShadowColor: 'rgba(0,0,0,0.30)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2 },
   findingTiles: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   findTile: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.25)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 44, height: 44, borderRadius: 12, borderWidth: 2,
+    borderColor: '#CBD5E1', backgroundColor: '#FFFFFF',
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: 'rgba(0,0,0,0.10)', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 1, shadowRadius: 3, elevation: 2,
   },
   findTileSelected: {
-    borderColor: '#39FF14',
-    backgroundColor: 'rgba(57,255,20,0.20)',
+    borderColor: '#15803D', borderWidth: 3,
+    backgroundColor: '#22C55E',
+    shadowColor: '#15803D', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.50, shadowRadius: 7, elevation: 7,
   },
-  findTileLetter: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.60)',
-  },
-  findTileLetterSelected: { color: '#39FF14' },
+  findTileLetter: { fontFamily: 'Nunito_800ExtraBold', fontSize: 20, color: '#0F172A' },
+  findTileLetterSelected: { color: '#FFFFFF' },
   findTileWrong: {
-    borderColor: '#FF006E',
-    backgroundColor: 'rgba(255,0,110,0.20)',
+    borderColor: '#B91C1C', borderWidth: 3,
+    backgroundColor: '#EF4444',
+    shadowColor: '#B91C1C', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.50, shadowRadius: 6, elevation: 6,
   },
-  findTileLetterWrong: { color: '#FF006E' },
-  startBuildBtn: {
-    backgroundColor: '#39FF14',
-    borderRadius: 18,
-    paddingVertical: 16,
-    alignItems: 'center',
-    width: '100%',
-    shadowColor: '#39FF14',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.7,
-    shadowRadius: 10,
-    elevation: 10,
-  },
-  startBuildBtnDisabled: { opacity: 0.35 },
-  startBuildBtnText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 18,
-    color: '#0D0B1E',
-    letterSpacing: 2,
-  },
+  findTileLetterWrong: { color: '#FFFFFF' },
 
-  wordTilesRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    gap: 12,
+  startBuildBtn: {
+    backgroundColor: '#F97316', borderRadius: 18, paddingVertical: 16, alignItems: 'center', width: '100%',
+    shadowColor: '#F97316', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.40, shadowRadius: 10, elevation: 8,
   },
+  startBuildBtnText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 18, color: '#fff', letterSpacing: 1 },
 
   buildSlotsWrapper: { alignItems: 'center' },
-
-  buildActions: {
-    flexDirection: 'row',
-    gap: 8,
-    justifyContent: 'center',
-  },
+  buildActions: { flexDirection: 'row', gap: 8, justifyContent: 'center' },
 
   foundSection: { gap: 8 },
-  foundTitle: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 12,
-    color: 'rgba(255,255,255,0.50)',
-    letterSpacing: 1,
-    textAlign: 'center',
-  },
-  foundChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    justifyContent: 'center',
-  },
+  foundTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 12, color: '#fff', letterSpacing: 1, textAlign: 'center',
+    textShadowColor:'rgba(0,0,0,0.35)', textShadowOffset:{width:0,height:1}, textShadowRadius:3 },
+  foundChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center' },
   foundChip: {
-    backgroundColor: 'rgba(57,255,20,0.15)',
-    borderWidth: 1,
-    borderColor: '#39FF14',
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
+    backgroundColor: '#FFFFFF', borderWidth: 2, borderColor: '#27AE60',
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4,
+    shadowColor: '#27AE60', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.20, shadowRadius: 4, elevation: 3,
   },
-  foundChipText: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 13,
-    color: '#39FF14',
-  },
+  foundChipText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 13, color: '#166534' },
 
-  // Shared buttons
   hintBtn: {
-    backgroundColor: 'rgba(255,215,0,0.15)',
-    borderWidth: 2,
-    borderColor: '#FFD700',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#F59E0B', borderWidth: 0,
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#B45309', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.35, shadowRadius: 5, elevation: 5,
   },
-  hintBtnText: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 14,
-    color: '#FFD700',
-    letterSpacing: 0.5,
-  },
+  hintBtnText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 14, color: '#FFFFFF', letterSpacing: 0.5 },
   clearBtn: {
-    backgroundColor: 'rgba(255,0,110,0.15)',
-    borderWidth: 2,
-    borderColor: '#FF006E',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: '#EF4444', borderWidth: 0,
+    borderRadius: 14, paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#B91C1C', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.40, shadowRadius: 5, elevation: 5,
   },
-  clearBtnText: {
-    fontFamily: 'Nunito_700Bold',
-    fontSize: 14,
-    color: '#FF006E',
-  },
+  clearBtnDisabled: { backgroundColor: '#E2E8F0', shadowOpacity: 0, elevation: 0 },
+  clearBtnText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 14, color: '#FFFFFF' },
   checkBtn: {
-    flex: 1,
-    backgroundColor: 'rgba(57,255,20,0.20)',
-    borderWidth: 2,
-    borderColor: '#39FF14',
-    borderRadius: 14,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#39FF14',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    elevation: 8,
+    flex: 1, backgroundColor: '#7C3AED', borderRadius: 14,
+    paddingHorizontal: 18, paddingVertical: 10, alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#5B21B6', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.40, shadowRadius: 6, elevation: 6,
   },
-  checkBtnText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 15,
-    color: '#39FF14',
-    letterSpacing: 1,
-  },
-  checkBtnDisabled: {
-    opacity: 0.35,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
+  checkBtnText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 15, color: '#fff', letterSpacing: 1 },
+  checkBtnDisabled: { backgroundColor: '#E2E8F0', shadowOpacity: 0, elevation: 0 },
   submitBtn: {
-    flex: 1,
-    backgroundColor: 'rgba(57,255,20,0.20)',
-    borderWidth: 2,
-    borderColor: '#39FF14',
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#39FF14',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    elevation: 8,
+    flex: 1, backgroundColor: '#7C3AED', borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#5B21B6', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.40, shadowRadius: 6, elevation: 6,
   },
-  submitBtnText: {
-    fontFamily: 'Nunito_800ExtraBold',
-    fontSize: 14,
-    color: '#39FF14',
-    letterSpacing: 1,
-  },
-  submitBtnDisabled: {
-    opacity: 0.35,
-    shadowOpacity: 0,
-    elevation: 0,
-  },
+  submitBtnText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 14, color: '#fff', letterSpacing: 1 },
+  submitBtnDisabled: { backgroundColor: '#E2E8F0', shadowOpacity: 0, elevation: 0 },
 });
