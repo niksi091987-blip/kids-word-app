@@ -510,8 +510,47 @@ function ChapterLabel({ text }) {
 //  MAIN SCREEN
 // ══════════════════════════════════════════════════════════════════
 
+function TapToStart({ onStart }) {
+  const pulse = useSharedValue(1);
+  const starOp = useSharedValue(0);
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withSequence(
+        withTiming(1.12, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.0,  { duration: 700, easing: Easing.inOut(Easing.ease) }),
+      ), -1, false,
+    );
+    starOp.value = withRepeat(
+      withSequence(withTiming(1, { duration: 800 }), withTiming(0.3, { duration: 800 })),
+      -1, false,
+    );
+  }, []);
+  const pulseAnim = useAnimatedStyle(() => ({ transform: [{ scale: pulse.value }] }));
+  const starAnim  = useAnimatedStyle(() => ({ opacity: starOp.value }));
+  return (
+    <Pressable style={StyleSheet.absoluteFill} onPress={onStart}>
+      <View style={tap.container}>
+        <Cloud top={40}  startX={SW * 0.3} speed={22000} scale={0.9} />
+        <Cloud top={110} startX={-180}      speed={30000} scale={0.65} />
+        <View style={tap.inner}>
+          <Lexie mood="excited" size={170} />
+          <Text style={tap.title}>Word Match Kids</Text>
+          <Animated.View style={pulseAnim}>
+            <View style={tap.tapPill}>
+              <Animated.Text style={[tap.stars, starAnim]}>✦ ✦ ✦</Animated.Text>
+              <Text style={tap.tapTxt}>Tap anywhere to start!</Text>
+              <Animated.Text style={[tap.stars, starAnim]}>✦ ✦ ✦</Animated.Text>
+            </View>
+          </Animated.View>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
 export default function IntroScreen({ navigation }) {
   const [chapter, setChapter]   = useState(0);   // 0-4 = playing, 5 = end
+  const [started, setStarted]   = useState(false); // false = show tap-to-start splash
   const [visible, setVisible]   = useState(true); // content visibility (for crossfade)
   const sfxRef    = useRef({});
   const autoTimer = useRef(null);
@@ -554,8 +593,18 @@ export default function IntroScreen({ navigation }) {
   // Fixed durations per chapter (primary advance mechanism — not speech.onDone)
   const CHAPTER_MS = [6000, 7500, 7500, 7000, 7500];
 
+  // ── Tap-to-start handler — user gesture unlocks iOS audio session ──
+  const startMovie = () => {
+    // Play tile_tap at near-zero volume: this user-gesture-triggered play
+    // activates AVAudioSession so all subsequent Speech.speak calls work.
+    const s = sfxRef.current.tile_tap;
+    if (s) s.setVolumeAsync(0.01).then(() => s.playAsync()).catch(() => {});
+    setStarted(true);
+  };
+
   // ── Chapter enter ──────────────────────────────────────────────
   useEffect(() => {
+    if (!started) return;
     if (chapter >= 5) {
       playS.value = withSpring(1, { damping: 6, stiffness: 100 });
       return;
@@ -573,13 +622,10 @@ export default function IntroScreen({ navigation }) {
     lexieS.value = withSpring(1, { damping: 8,  stiffness: 100 });
 
     // Narrate (fire and forget — do NOT depend on onDone)
-    // chapter 0: delay 1200ms to let silent-unlock + audio session init settle
-    // later chapters: 500ms is fine (session already active)
     Speech.stop();
-    const speechDelay = chapter === 0 ? 1200 : 500;
     const sTimer = setTimeout(() => {
       Speech.speak(NARRATION[chapter], { pitch: 1.18, rate: 0.80 });
-    }, speechDelay);
+    }, 500);
 
     // PRIMARY auto-advance: fixed timer — reliable on all devices
     if (autoTimer.current) clearTimeout(autoTimer.current);
@@ -589,7 +635,7 @@ export default function IntroScreen({ navigation }) {
       clearTimeout(sTimer);
       if (autoTimer.current) clearTimeout(autoTimer.current);
     };
-  }, [chapter]);
+  }, [chapter, started]);
 
   // ── Advance to next chapter with crossfade ─────────────────────
   const advanceChapter = () => {
@@ -648,6 +694,15 @@ export default function IntroScreen({ navigation }) {
   }));
 
   const isDone = chapter >= 5;
+
+  if (!started) {
+    return (
+      <View style={{ flex: 1 }}>
+        <MovieBackground op0={bg0} op1={bg1} op2={bg2} op3={bg3} op4={bg4} />
+        <TapToStart onStart={startMovie} />
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1 }}>
@@ -847,4 +902,33 @@ const s = StyleSheet.create({
   },
   playBtnGrad: { paddingVertical:20, alignItems:'center', borderRadius:36 },
   playTxt:   { fontFamily:'Nunito_800ExtraBold', fontSize:24, color:'white', letterSpacing:1 },
+});
+
+const tap = StyleSheet.create({
+  container: {
+    flex:1, alignItems:'center', justifyContent:'center',
+  },
+  inner: {
+    alignItems:'center', gap:18, paddingHorizontal:30,
+  },
+  title: {
+    fontFamily:'Nunito_800ExtraBold', fontSize:34, color:'white',
+    textAlign:'center', letterSpacing:1,
+    textShadowColor:'rgba(0,0,0,0.5)', textShadowOffset:{width:2,height:3}, textShadowRadius:8,
+  },
+  tapPill: {
+    backgroundColor:'rgba(255,255,255,0.22)',
+    borderRadius:40, paddingHorizontal:28, paddingVertical:14,
+    borderWidth:2.5, borderColor:'rgba(255,255,255,0.55)',
+    alignItems:'center', gap:4,
+    shadowColor:'#000', shadowOffset:{width:0,height:6}, shadowOpacity:0.25, shadowRadius:10, elevation:8,
+  },
+  tapTxt: {
+    fontFamily:'Nunito_800ExtraBold', fontSize:20, color:'white', textAlign:'center',
+    textShadowColor:'rgba(0,0,0,0.4)', textShadowOffset:{width:1,height:2}, textShadowRadius:4,
+  },
+  stars: {
+    fontFamily:'Nunito_700Bold', fontSize:14, color:'#FFD700', letterSpacing:6,
+    textShadowColor:'rgba(0,0,0,0.4)', textShadowOffset:{width:1,height:1}, textShadowRadius:3,
+  },
 });
