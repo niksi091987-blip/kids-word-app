@@ -24,7 +24,16 @@ const SFX_SOURCES = {
   level_complete: require('../../assets/sounds/level_complete.wav'),
 };
 async function loadSounds() {
-  try { await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, staysActiveInBackground: false }); } catch {}
+  try {
+    await Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: false,
+      shouldDuckAndroid: true,      // let TTS speak over SFX on Android
+      allowsRecordingIOS: false,
+      interruptionModeIOS: 2,       // 2 = DuckOthers — allows TTS to coexist
+      interruptionModeAndroid: 2,   // 2 = DuckOthers — same on Android
+    });
+  } catch {}
   const out = {};
   for (const [k, src] of Object.entries(SFX_SOURCES)) {
     try { const { sound } = await Audio.Sound.createAsync(src, { shouldPlay: false }); out[k] = sound; } catch {}
@@ -560,7 +569,7 @@ export default function IntroScreen({ navigation }) {
     // Narrate (fire and forget — do NOT depend on onDone)
     Speech.stop();
     const sTimer = setTimeout(() => {
-      Speech.speak(NARRATION[chapter], { language: 'en-US', pitch: 1.18, rate: 0.80 });
+      Speech.speak(NARRATION[chapter], { pitch: 1.18, rate: 0.80 });
     }, 500);
 
     // PRIMARY auto-advance: fixed timer — reliable on all devices
