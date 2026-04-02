@@ -362,19 +362,8 @@ export default function HomeScreen({ navigation }) {
 
           {/* Logo */}
           <Animated.View style={[ui.heroArea, logoStyle]}>
-            <WordMatchLogo />
+            <LexieBadge large />
           </Animated.View>
-
-          {/* Title */}
-          <Animated.View style={[ui.titleArea, titleStyle]}>
-            <Text style={ui.title}>LEXIE'S</Text>
-            <View style={ui.kidsBadge}>
-              <Text style={ui.kidsText}>WORD LAB</Text>
-            </View>
-          </Animated.View>
-
-          {/* Mascot with speech bubble */}
-          <Mascot />
 
           {/* Streak */}
           {progress.dailyStreak > 1 && (
