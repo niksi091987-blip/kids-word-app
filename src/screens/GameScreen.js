@@ -38,6 +38,7 @@ import BuildWordSlots from '../components/BuildWordSlots';
 import TimerBar from '../components/TimerBar';
 import FoundWordsList from '../components/FoundWordsList';
 import GameButton from '../components/GameButton';
+import HintBuddy from '../components/HintBuddy';
 
 // ── Theme ──────────────────────────────────────────────────────────────────────
 const BG = ['#1565C0', '#1E88E5', '#42A5F5', '#7EC8F0'];
@@ -452,6 +453,31 @@ export default function GameScreen({ route, navigation }) {
     }
   }
 
+  function handleSpellingHint() {
+    if (!game.puzzle) return;
+    dispatch({ type: GAME_ACTIONS.USE_HINT });
+    const t = (game.spellingTarget === 1 ? game.puzzle.word1 : game.puzzle.word2).toLowerCase();
+    const slots = game.spellingSlots;
+    const firstWrongIdx = slots.findIndex((s, i) => s !== '' && s !== t[i]);
+    if (firstWrongIdx !== -1) {
+      const corrected = slots.map((s, i) => i >= firstWrongIdx ? '' : s);
+      dispatch({ type: GAME_ACTIONS.SET_SPELLING_SLOTS, payload: corrected });
+      speakWord(`Hmm, not quite. Let me give you a little hint!`, {
+        onDone: () => {
+          setTimeout(() => {
+            speakPhonics(t[firstWrongIdx]);
+            setTimeout(() => speakWord(`Try the sound ${t[firstWrongIdx]}`), 1200);
+          }, 400);
+        },
+      });
+    } else {
+      const nextIdx = slots.indexOf('');
+      if (nextIdx === -1) return;
+      speakPhonics(t[nextIdx]);
+      setTimeout(() => speakWord(`The next sound is ${t[nextIdx]}`), 1200);
+    }
+  }
+
   function handlePicturePress() {
     if (!game.puzzle) return;
     const word = game.spellingTarget === 1 ? game.puzzle.word1 : game.puzzle.word2;
@@ -579,42 +605,7 @@ export default function GameScreen({ route, navigation }) {
 
               {/* Check & Hint buttons */}
               <View style={styles.spellingActions}>
-                <Pressable
-                  onPress={() => {
-                    dispatch({ type: GAME_ACTIONS.USE_HINT });
-                    if (!game.puzzle) return;
-                    const t = (game.spellingTarget === 1 ? game.puzzle.word1 : game.puzzle.word2).toLowerCase();
-                    const slots = game.spellingSlots;
-
-                    // Find first wrong letter
-                    const firstWrongIdx = slots.findIndex((s, i) => s !== '' && s !== t[i]);
-
-                    if (firstWrongIdx !== -1) {
-                      // Remove wrong letters immediately (visual update)
-                      const corrected = slots.map((s, i) => i >= firstWrongIdx ? '' : s);
-                      dispatch({ type: GAME_ACTIONS.SET_SPELLING_SLOTS, payload: corrected });
-                      // Speak correction fully, then hint correct letter via onDone
-                      const wrongLetter = slots[firstWrongIdx].toUpperCase();
-                      speakWord(`Hmm, not quite. Let me give you a little hint!`, {
-                        onDone: () => {
-                          setTimeout(() => {
-                            speakPhonics(t[firstWrongIdx]);
-                            setTimeout(() => speakWord(`Try the sound ${t[firstWrongIdx]}`), 1200);
-                          }, 400);
-                        },
-                      });
-                    } else {
-                      // All typed letters are correct — hint the next one
-                      const nextIdx = slots.indexOf('');
-                      if (nextIdx === -1) return; // all filled and correct
-                      speakPhonics(t[nextIdx]);
-                      setTimeout(() => speakWord(`The next sound is ${t[nextIdx]}`), 1200);
-                    }
-                  }}
-                  style={styles.hintBtn}
-                >
-                  <Text style={styles.hintBtnText}>💡 HINT</Text>
-                </Pressable>
+                <HintBuddy onPress={handleSpellingHint} />
 
                 <Pressable
                   onPress={handleCheckSpelling}
@@ -792,9 +783,7 @@ export default function GameScreen({ route, navigation }) {
 
               {/* Action buttons */}
               <View style={styles.buildActions}>
-                <Pressable onPress={handleHint} style={styles.hintBtn}>
-                  <Text style={styles.hintBtnText}>💡 HINT</Text>
-                </Pressable>
+                <HintBuddy onPress={handleHint} />
                 <Pressable
                   onPress={handleClear}
                   style={[styles.clearBtn, builtWordCount === 0 && styles.clearBtnDisabled]}
@@ -906,7 +895,7 @@ const styles = StyleSheet.create({
   bigEmoji: { fontSize: 80 },
   tapHint: { fontFamily: 'Nunito_600SemiBold', fontSize: 12, color: '#64748B', marginTop: 4 },
 
-  spellingActions: { flexDirection: 'row', gap: 10, paddingHorizontal: 4, paddingTop: 4 },
+  spellingActions: { flexDirection: 'row', gap: 10, paddingHorizontal: 4, paddingTop: 4, alignItems: 'flex-end' },
   alphabetWrapper: { marginTop: 4 },
 
   // Build / common phase
@@ -966,7 +955,7 @@ const styles = StyleSheet.create({
   startBuildBtnText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 18, color: '#fff', letterSpacing: 1 },
 
   buildSlotsWrapper: { alignItems: 'center' },
-  buildActions: { flexDirection: 'row', gap: 8, justifyContent: 'center' },
+  buildActions: { flexDirection: 'row', gap: 8, justifyContent: 'center', alignItems: 'flex-end' },
 
   foundSection: { gap: 8 },
   foundTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 12, color: '#fff', letterSpacing: 1, textAlign: 'center',

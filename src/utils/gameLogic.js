@@ -66,7 +66,7 @@ export function getSpellingHint(correctWord) {
 function getDifficultyParams(level) {
   if (level <= 2) {
     // Levels 1-2: simple 3-letter words for youngest kids
-    return { wordLengths: [3], minCommon: 2, maxCommon: 3, timeBonus: 120 };
+    return { wordLengths: [3], minCommon: 3, maxCommon: 3, timeBonus: 120 };
   } else if (level <= 3) {
     return { wordLengths: [3, 4], minCommon: 3, maxCommon: 4, timeBonus: 110 };
   } else if (level <= 4) {
