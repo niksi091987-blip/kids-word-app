@@ -117,6 +117,34 @@ export default function GameScreen({ route, navigation }) {
   const [overlayMounted, setOverlayMounted] = useState(false);
   const [overlayVisible, setOverlayVisible] = useState(false);
 
+  // ── Derived ───────────────────────────────────────────────────────────────────
+  const isSpellingPhase = game.phase === 'spelling_word1' || game.phase === 'spelling_word2';
+  const isCommonFinding = game.phase === 'common_finding';
+  const isWordBuilding = game.phase === 'word_building' || game.phase === 'word_correct'
+    || game.phase === 'word_wrong' || game.phase === 'word_duplicate';
+  const theme = LEVEL_THEMES[(level - 1) % LEVEL_THEMES.length];
+
+  const currentWord = game.puzzle
+    ? (game.spellingTarget === 1 ? game.puzzle.word1 : game.puzzle.word2)
+    : '';
+  const currentEmoji = game.puzzle
+    ? getWordEmoji(game.spellingTarget === 1 ? game.puzzle.word1 : game.puzzle.word2)
+    : '❓';
+  const allSlotsFilled = game.spellingSlots.length > 0 && !game.spellingSlots.includes('');
+
+  const builtWordCount = game.buildSlots.filter(Boolean).length;
+  const canSubmitWord = builtWordCount >= 2 && game.phase === 'word_building';
+
+  const uniqueCommonLetters = game.puzzle ? [...new Set(game.puzzle.commonLetters)] : [];
+  const selectedLetters = game.wordTiles.filter(t => t.selected).map(t => t.letter);
+  const allCommonLettersFound = uniqueCommonLetters.length > 0 &&
+    uniqueCommonLetters.every(letter => selectedLetters.includes(letter));
+  const foundCommonCount = uniqueCommonLetters.filter(l => selectedLetters.includes(l)).length;
+
+  const highlightLetter = game.spellingHintActive && game.puzzle
+    ? (game.spellingTarget === 1 ? game.puzzle.word1[0] : game.puzzle.word2[0])
+    : null;
+
   useEffect(() => {
     isMountedRef.current = true;
     return () => { isMountedRef.current = false; stopSpeech(); };
@@ -585,35 +613,6 @@ export default function GameScreen({ route, navigation }) {
     stopSpeech();
     navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
   }
-
-  // ── Derived ───────────────────────────────────────────────────────────────────
-  const isSpellingPhase = game.phase === 'spelling_word1' || game.phase === 'spelling_word2';
-  const isCommonFinding = game.phase === 'common_finding';
-  const isWordBuilding = game.phase === 'word_building' || game.phase === 'word_correct'
-    || game.phase === 'word_wrong' || game.phase === 'word_duplicate';
-  const theme = LEVEL_THEMES[(level - 1) % LEVEL_THEMES.length];
-
-  const currentWord = game.puzzle
-    ? (game.spellingTarget === 1 ? game.puzzle.word1 : game.puzzle.word2)
-    : '';
-  const currentEmoji = game.puzzle
-    ? getWordEmoji(game.spellingTarget === 1 ? game.puzzle.word1 : game.puzzle.word2)
-    : '❓';
-  const allSlotsFilled = game.spellingSlots.length > 0 && !game.spellingSlots.includes('');
-
-  const builtWordCount = game.buildSlots.filter(Boolean).length;
-  const canSubmitWord = builtWordCount >= 2 && game.phase === 'word_building';
-
-  const uniqueCommonLetters = game.puzzle ? [...new Set(game.puzzle.commonLetters)] : [];
-  const selectedLetters = game.wordTiles.filter(t => t.selected).map(t => t.letter);
-  const allCommonLettersFound = uniqueCommonLetters.length > 0 &&
-    uniqueCommonLetters.every(letter => selectedLetters.includes(letter));
-  // How many unique common letters has the kid found so far
-  const foundCommonCount = uniqueCommonLetters.filter(l => selectedLetters.includes(l)).length;
-
-  const highlightLetter = game.spellingHintActive && game.puzzle
-    ? (game.spellingTarget === 1 ? game.puzzle.word1[0] : game.puzzle.word2[0])
-    : null;
 
   // ── Loading state ─────────────────────────────────────────────────────────────
   if (!game.puzzle) {
