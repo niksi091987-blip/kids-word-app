@@ -36,10 +36,10 @@ export default function BuddyIntroOverlay({ show, onReady, onDismissed }) {
       cardY.value     = withSpring(0, { damping: 14, stiffness: 180 });
       cardScale.value = withSequence(
         withSpring(1.08, { damping: 8, stiffness: 220 }),
-        withSpring(1.0,  { damping: 14, stiffness: 260 }, (finished) => {
-          if (finished) runOnJS(onReady)();
-        }),
+        withSpring(1.0,  { damping: 14, stiffness: 260 }),
       );
+      // Speak immediately as popup appears — don't wait for animation to finish
+      runOnJS(onReady)();
 
       // Owl idle bounce while overlay is showing
       owlBounce.value = withRepeat(
