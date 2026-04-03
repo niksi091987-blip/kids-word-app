@@ -110,6 +110,8 @@ export default function GameScreen({ route, navigation }) {
   const countdownSpoken = useRef(new Set());
   const isMountedRef = useRef(true);
   const introPuzzleRef = useRef(null);       // holds puzzle while intro overlay is showing
+  const allFoundHandledRef = useRef(false);  // prevents double-fire of celebration
+  const prevFoundCountRef = useRef(0);       // tracks last spoken found-count
   const [mascotMsg, setMascotMsg] = useState(MASCOT_MESSAGES.spelling_word1);
   const [spellingPhase, setSpellingPhase] = useState('idle'); // 'idle' | 'wrong' | 'correct'
   const [overlayMounted, setOverlayMounted] = useState(false);
@@ -178,6 +180,8 @@ export default function GameScreen({ route, navigation }) {
     completionHandled.current = false;
     timerStarted.current = false;
     puzzleStarted.current = false;
+    allFoundHandledRef.current = false;
+    prevFoundCountRef.current = 0;
     dispatch({ type: GAME_ACTIONS.RESET });
 
     const t = setTimeout(() => {
@@ -225,6 +229,44 @@ export default function GameScreen({ route, navigation }) {
       }, 500);
     }
   }, [game.phase]);
+
+  // ── Common-finding: live progress speech + auto-advance when all found ─────────
+  useEffect(() => {
+    if (game.phase !== 'common_finding' || !game.puzzle) return;
+    if (foundCommonCount === 0) return;
+    // Only react when count goes UP (letter added, not deselected)
+    if (foundCommonCount <= prevFoundCountRef.current) {
+      prevFoundCountRef.current = foundCommonCount;
+      return;
+    }
+    prevFoundCountRef.current = foundCommonCount;
+
+    const remaining = uniqueCommonLetters.length - foundCommonCount;
+
+    if (remaining === 0 && !allFoundHandledRef.current) {
+      // ── ALL LETTERS FOUND ──────────────────────────────────────────────────
+      allFoundHandledRef.current = true;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      play('word_correct');
+      setMascotMsg('🎉 WOW! You found ALL the letters!');
+      speakWord("Wow wow wow! You found ALL the letters! That is absolutely amazing! Now let's build some words!", {
+        onDone: () => {
+          setTimeout(() => {
+            if (isMountedRef.current) dispatch({ type: GAME_ACTIONS.START_BUILDING });
+          }, 400);
+        },
+      });
+    } else if (remaining === 1) {
+      setMascotMsg('🔥 So close! Just 1 more letter!');
+      speakWord("So close! Just one more letter to find! You can do it!");
+    } else if (remaining === 2) {
+      setMascotMsg(`🔍 Almost there! 2 more letters to go!`);
+      speakWord("Great find! Just two more letters hiding in both words!");
+    } else {
+      setMascotMsg(`🕵️ Good spot! ${remaining} more letters to find!`);
+      speakWord(`Nice one! Keep looking! There are still ${remaining} more letters in both words!`);
+    }
+  }, [foundCommonCount]); // eslint-disable-line
 
   // ── Countdown tick sound + speech ────────────────────────────────────────────
   useEffect(() => {
@@ -566,6 +608,8 @@ export default function GameScreen({ route, navigation }) {
   const selectedLetters = game.wordTiles.filter(t => t.selected).map(t => t.letter);
   const allCommonLettersFound = uniqueCommonLetters.length > 0 &&
     uniqueCommonLetters.every(letter => selectedLetters.includes(letter));
+  // How many unique common letters has the kid found so far
+  const foundCommonCount = uniqueCommonLetters.filter(l => selectedLetters.includes(l)).length;
 
   const highlightLetter = game.spellingHintActive && game.puzzle
     ? (game.spellingTarget === 1 ? game.puzzle.word1[0] : game.puzzle.word2[0])
@@ -763,23 +807,20 @@ export default function GameScreen({ route, navigation }) {
                 ))}
               </View>
 
-              <Pressable
-                onPress={() => {
-                  if (!allCommonLettersFound) {
-                    const missing = uniqueCommonLetters
-                      .filter(letter => !selectedLetters.includes(letter))
-                      .map(l => l.toUpperCase())
-                      .join(', ');
-                    setMascotMsg(`🔍 Keep looking! Find the letter${missing.length > 1 ? 's' : ''}: ${missing}`);
-                    speakWord("Keep going! There are still some sneaky letters hiding in both words. Can you spot them?");
-                    return;
-                  }
-                  dispatch({ type: GAME_ACTIONS.START_BUILDING });
-                }}
-                style={styles.startBuildBtn}
-              >
-                <Text style={styles.startBuildBtnText}>🚀 Let's Build Words!</Text>
-              </Pressable>
+              {/* Progress dots — one star per unique common letter */}
+              <View style={styles.commonProgressRow}>
+                {uniqueCommonLetters.map((letter, i) => {
+                  const found = selectedLetters.includes(letter);
+                  return (
+                    <View key={i} style={[styles.commonProgressDot, found && styles.commonProgressDotFound]}>
+                      <Text style={styles.commonProgressDotText}>{found ? '⭐' : '○'}</Text>
+                    </View>
+                  );
+                })}
+                <Text style={styles.commonProgressLabel}>
+                  {foundCommonCount}/{uniqueCommonLetters.length} found
+                </Text>
+              </View>
             </Animated.View>
           )}
 
@@ -1009,11 +1050,22 @@ const styles = StyleSheet.create({
   },
   findTileLetterWrong: { color: '#FFFFFF' },
 
-  startBuildBtn: {
-    backgroundColor: '#F97316', borderRadius: 18, paddingVertical: 16, alignItems: 'center', width: '100%',
-    shadowColor: '#F97316', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.40, shadowRadius: 10, elevation: 8,
+  commonProgressRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, paddingVertical: 10,
   },
-  startBuildBtnText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 18, color: '#fff', letterSpacing: 1 },
+  commonProgressDot: {
+    width: 36, height: 36, borderRadius: 18,
+    backgroundColor: '#E2E8F0', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: '#CBD5E1',
+  },
+  commonProgressDotFound: {
+    backgroundColor: '#FEF9C3', borderColor: '#F59E0B',
+  },
+  commonProgressDotText: { fontSize: 18 },
+  commonProgressLabel: {
+    fontFamily: 'Nunito_700Bold', fontSize: 13, color: '#64748B', marginLeft: 4,
+  },
 
   buildSlotsWrapper: { alignItems: 'center' },
   buildActions: { flexDirection: 'row', gap: 8, justifyContent: 'center', alignItems: 'flex-end' },
