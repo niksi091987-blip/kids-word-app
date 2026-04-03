@@ -849,16 +849,29 @@ export default function GameScreen({ route, navigation }) {
                 </View>
               </View>
 
-              {/* Instruction */}
-              <View style={styles.instructionCard}>
-                <Text style={styles.instructionText}>
-                  🔤 Tap the common letters to build new words!
-                </Text>
+              {/* Goal card */}
+              <View style={styles.goalCard}>
+                <View style={styles.goalTopRow}>
+                  <Text style={styles.goalEmoji}>🎯</Text>
+                  <View style={styles.goalTextCol}>
+                    <Text style={styles.goalTitle}>
+                      Find <Text style={styles.goalCount}>{game.puzzle.possibleWords.length}</Text> word{game.puzzle.possibleWords.length !== 1 ? 's' : ''}!
+                    </Text>
+                    <Text style={styles.goalFound}>
+                      {game.foundWords.length} found so far {game.foundWords.length > 0 ? '🌟' : ''}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.goalRuleRow}>
+                  <Text style={styles.goalRuleText}>
+                    💡 Use <Text style={styles.goalRuleHighlight}>any</Text> letters — you don't need them all!
+                  </Text>
+                </View>
               </View>
 
               {/* Common letter tiles */}
               <WordLetterTiles
-                label="COMMON LETTERS"
+                label="COMMON LETTERS — tap to use"
                 tiles={game.wordTiles}
                 onTileTap={handleTileTap}
                 disabled={game.phase !== 'word_building'}
@@ -893,11 +906,9 @@ export default function GameScreen({ route, navigation }) {
               </View>
 
               {/* Found words */}
-              <View style={styles.foundSection}>
-                <Text style={styles.foundTitle}>
-                  WORDS FOUND: {game.foundWords.length}/{game.puzzle?.possibleWords?.length || 0}
-                </Text>
-                {game.foundWords.length > 0 && (
+              {game.foundWords.length > 0 && (
+                <View style={styles.foundSection}>
+                  <Text style={styles.foundTitle}>WORDS YOU FOUND 🎉</Text>
                   <View style={styles.foundChips}>
                     {game.foundWords.map((w, i) => (
                       <View key={i} style={styles.foundChip}>
@@ -907,8 +918,8 @@ export default function GameScreen({ route, navigation }) {
                       </View>
                     ))}
                   </View>
-                )}
-              </View>
+                </View>
+              )}
             </Animated.View>
           )}
         </ScrollView>
@@ -1064,6 +1075,58 @@ const styles = StyleSheet.create({
   commonProgressDotText: { fontSize: 18 },
   commonProgressLabel: {
     fontFamily: 'Nunito_700Bold', fontSize: 13, color: '#64748B', marginLeft: 4,
+  },
+
+  // Goal card — word building phase
+  goalCard: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 18,
+    padding: 12,
+    gap: 8,
+    shadowColor: '#1565C0',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  goalTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  goalEmoji: { fontSize: 36 },
+  goalTextCol: { flex: 1, gap: 2 },
+  goalTitle: {
+    fontFamily: 'Nunito_800ExtraBold',
+    fontSize: 20,
+    color: '#1E293B',
+    lineHeight: 24,
+  },
+  goalCount: {
+    color: '#7C3AED',
+    fontSize: 24,
+  },
+  goalFound: {
+    fontFamily: 'Nunito_700Bold',
+    fontSize: 13,
+    color: '#27AE60',
+  },
+  goalRuleRow: {
+    backgroundColor: '#FEF9C3',
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  goalRuleText: {
+    fontFamily: 'Nunito_600SemiBold',
+    fontSize: 13,
+    color: '#78350F',
+    textAlign: 'center',
+  },
+  goalRuleHighlight: {
+    fontFamily: 'Nunito_800ExtraBold',
+    color: '#E85D04',
+    fontSize: 14,
   },
 
   buildSlotsWrapper: { alignItems: 'center' },
