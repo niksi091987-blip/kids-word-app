@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -6,69 +6,97 @@ import Animated, {
   withRepeat,
   withSequence,
   withTiming,
+  withDelay,
   withSpring,
   cancelAnimation,
+  runOnJS,
 } from 'react-native-reanimated';
 
-// ── HintBuddy — animated cartoon owl helper ───────────────────────────────────
-// Shows a bouncing mini-owl with a speech bubble.
-// First appearance: bubble says "Need help? Tap me!"
-// On press: wiggles excitedly and calls onPress.
+// ── HintBuddy ─────────────────────────────────────────────────────────────────
+// Animated mini-owl that lives next to the HINT action.
+// • Bounces gently when idle
+// • Periodically waves a wing to attract attention
+// • Speech bubble fades in on load, fades out after 3 s
+// • On press: wiggles excitedly, bubble re-appears briefly
 
 export default function HintBuddy({ onPress, disabled }) {
-  const [showBubble, setShowBubble] = useState(true);
   const hideTimer = useRef(null);
 
-  const bounce = useSharedValue(0);
-  const scale  = useSharedValue(1);
-  const tilt   = useSharedValue(0);
-  const eyeScale = useSharedValue(1);
+  // Shared values
+  const bounce      = useSharedValue(0);   // body float
+  const scale       = useSharedValue(1);   // press pop
+  const tilt        = useSharedValue(0);   // wiggle on press
+  const waveAngle   = useSharedValue(0);   // right-wing wave
+  const eyePop      = useSharedValue(1);   // eye scale on press
+  const bubbleOpacity = useSharedValue(0); // speech-bubble fade
 
-  // Gentle idle bounce
+  // ── Idle animations ─────────────────────────────────────────────────────────
   useEffect(() => {
+    // Gentle float
     bounce.value = withRepeat(
       withSequence(
-        withTiming(-5, { duration: 650 }),
-        withTiming(0,  { duration: 650 }),
+        withTiming(-5, { duration: 700 }),
+        withTiming(0,  { duration: 700 }),
       ),
       -1,
       false,
     );
 
-    // Auto-hide speech bubble after 3 s
-    hideTimer.current = setTimeout(() => setShowBubble(false), 3000);
+    // Periodic wing-wave: wave twice, then pause ~4 s, repeat
+    waveAngle.value = withRepeat(
+      withSequence(
+        withDelay(2500, withTiming(-22, { duration: 160 })),
+        withTiming(0,   { duration: 160 }),
+        withTiming(-22, { duration: 160 }),
+        withTiming(0,   { duration: 160 }),
+        withTiming(0,   { duration: 3500 }), // pause
+      ),
+      -1,
+      false,
+    );
+
+    // Fade bubble in on mount, then fade out after 3.2 s
+    bubbleOpacity.value = withTiming(1, { duration: 350 });
+    hideTimer.current = setTimeout(() => {
+      bubbleOpacity.value = withTiming(0, { duration: 500 });
+    }, 3200);
+
     return () => clearTimeout(hideTimer.current);
   }, []);
 
+  // ── Press handler ────────────────────────────────────────────────────────────
   function handlePress() {
     if (disabled) return;
 
-    // Show bubble briefly again with encouraging text
-    setShowBubble(true);
-    clearTimeout(hideTimer.current);
-    hideTimer.current = setTimeout(() => setShowBubble(false), 2200);
-
-    // Wiggle + bounce animation
+    // Wiggle + pop
     cancelAnimation(tilt);
     tilt.value = withSequence(
-      withTiming(-16, { duration: 70 }),
-      withTiming(16,  { duration: 70 }),
-      withTiming(-10, { duration: 70 }),
-      withTiming(10,  { duration: 70 }),
-      withTiming(0,   { duration: 70 }),
+      withTiming(-15, { duration: 65 }),
+      withTiming(15,  { duration: 65 }),
+      withTiming(-10, { duration: 65 }),
+      withTiming(10,  { duration: 65 }),
+      withTiming(0,   { duration: 65 }),
     );
     scale.value = withSequence(
       withSpring(1.4, { damping: 3, stiffness: 400 }),
       withSpring(1.0, { damping: 8, stiffness: 200 }),
     );
-    eyeScale.value = withSequence(
-      withTiming(1.6, { duration: 100 }),
-      withTiming(1.0, { duration: 200 }),
+    eyePop.value = withSequence(
+      withTiming(1.7, { duration: 90 }),
+      withTiming(1.0, { duration: 220 }),
     );
+
+    // Re-show bubble briefly
+    clearTimeout(hideTimer.current);
+    bubbleOpacity.value = withTiming(1, { duration: 200 });
+    hideTimer.current = setTimeout(() => {
+      bubbleOpacity.value = withTiming(0, { duration: 500 });
+    }, 2500);
 
     onPress?.();
   }
 
+  // ── Animated styles ──────────────────────────────────────────────────────────
   const bodyAnim = useAnimatedStyle(() => ({
     transform: [
       { translateY: bounce.value },
@@ -77,25 +105,34 @@ export default function HintBuddy({ onPress, disabled }) {
     ],
   }));
 
+  const rightWingAnim = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${waveAngle.value}deg` }],
+  }));
+
   const eyeAnim = useAnimatedStyle(() => ({
-    transform: [{ scale: eyeScale.value }],
+    transform: [{ scale: eyePop.value }],
+  }));
+
+  const bubbleAnim = useAnimatedStyle(() => ({
+    opacity: bubbleOpacity.value,
+    transform: [{ scale: 0.9 + bubbleOpacity.value * 0.1 }],
   }));
 
   return (
     <Pressable onPress={handlePress} disabled={disabled} style={styles.wrapper}>
+
       {/* Speech bubble */}
-      {showBubble && (
-        <View style={styles.bubble} pointerEvents="none">
-          <Text style={styles.bubbleText}>
-            {disabled ? 'Hmm...' : "Need help?\nTap me! 👋"}
-          </Text>
-          <View style={styles.bubbleTail} />
-        </View>
-      )}
+      <Animated.View style={[styles.bubble, bubbleAnim]} pointerEvents="none">
+        <Text style={styles.bubbleText}>
+          {disabled ? 'Hmm...' : 'Need help?\nTap me! 👋'}
+        </Text>
+        <View style={styles.bubbleTail} />
+      </Animated.View>
 
       {/* Owl body */}
       <Animated.View style={[styles.body, bodyAnim, disabled && styles.bodyDisabled]}>
-        {/* Ears */}
+
+        {/* Ear tufts */}
         <View style={styles.ears}>
           <View style={styles.ear} />
           <View style={styles.ear} />
@@ -103,96 +140,93 @@ export default function HintBuddy({ onPress, disabled }) {
 
         {/* Eyes */}
         <Animated.View style={[styles.eyeRow, eyeAnim]}>
-          <View style={styles.eyeOuter}>
-            <View style={styles.eyeInner} />
-          </View>
-          <View style={styles.eyeOuter}>
-            <View style={styles.eyeInner} />
-          </View>
+          <View style={styles.eyeOuter}><View style={styles.eyeInner} /></View>
+          <View style={styles.eyeOuter}><View style={styles.eyeInner} /></View>
         </Animated.View>
 
         {/* Beak */}
         <View style={styles.beak} />
 
-        {/* Wings */}
+        {/* Wings — right wing waves */}
         <View style={styles.wings}>
-          <View style={styles.wing} />
-          <View style={styles.wing} />
+          <View style={[styles.wing, styles.wingLeft]} />
+          <Animated.View style={[styles.wing, styles.wingRight, rightWingAnim]} />
         </View>
       </Animated.View>
 
-      <Text style={[styles.label, disabled && { color: '#94A3B8' }]}>HINT</Text>
+      <Text style={[styles.label, disabled && { color: '#9CA3AF' }]}>HINT</Text>
     </Pressable>
   );
 }
 
-const BODY_W = 48;
-const BODY_H = 54;
+// ── Styles ────────────────────────────────────────────────────────────────────
+const W = 50;   // body width
+const H = 58;   // body height
 
 const styles = StyleSheet.create({
   wrapper: {
     alignItems: 'center',
     justifyContent: 'flex-end',
-    width: BODY_W + 12,
-    minHeight: BODY_H + 28,
+    width: W + 14,
+    minHeight: H + 30,
   },
 
-  // ── Speech bubble ───────────────────────────────────────────────────────────
+  // Speech bubble
   bubble: {
     position: 'absolute',
-    bottom: BODY_H + 24,
+    bottom: H + 26,
     backgroundColor: '#FFFBEB',
     borderWidth: 2,
     borderColor: '#F59E0B',
     borderRadius: 12,
     paddingHorizontal: 10,
-    paddingVertical: 6,
-    width: 110,
+    paddingVertical: 7,
+    width: 114,
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.14,
     shadowRadius: 4,
-    elevation: 4,
+    elevation: 5,
   },
   bubbleText: {
     fontFamily: 'Nunito_700Bold',
     fontSize: 11,
     color: '#92400E',
     textAlign: 'center',
-    lineHeight: 15,
+    lineHeight: 16,
   },
   bubbleTail: {
     position: 'absolute',
-    bottom: -8,
+    bottom: -9,
     left: '50%',
-    marginLeft: -6,
+    marginLeft: -7,
     width: 0,
     height: 0,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderTopWidth: 8,
+    borderLeftWidth: 7,
+    borderRightWidth: 7,
+    borderTopWidth: 9,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     borderTopColor: '#F59E0B',
   },
 
-  // ── Owl body ────────────────────────────────────────────────────────────────
+  // Body
   body: {
-    width: BODY_W,
-    height: BODY_H,
+    width: W,
+    height: H,
     backgroundColor: '#92400E',
-    borderRadius: BODY_W / 2,
+    borderRadius: W / 2,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 2.5,
+    borderColor: '#FDE68A',
     shadowColor: '#78350F',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
+    shadowOpacity: 0.42,
     shadowRadius: 6,
-    elevation: 6,
-    overflow: 'hidden',
-    borderWidth: 2,
-    borderColor: '#FDE68A',
+    elevation: 7,
+    overflow: 'visible',
   },
   bodyDisabled: {
     backgroundColor: '#D1D5DB',
@@ -204,36 +238,36 @@ const styles = StyleSheet.create({
   // Ear tufts
   ears: {
     position: 'absolute',
-    top: -4,
+    top: -6,
     flexDirection: 'row',
-    gap: 14,
+    gap: 16,
   },
   ear: {
-    width: 8,
-    height: 12,
+    width: 9,
+    height: 13,
     backgroundColor: '#78350F',
-    borderRadius: 4,
+    borderRadius: 5,
   },
 
   // Eyes
   eyeRow: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 6,
+    marginTop: 8,
   },
   eyeOuter: {
-    width: 14,
-    height: 14,
+    width: 15,
+    height: 15,
     backgroundColor: '#FEF3C7',
-    borderRadius: 7,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   eyeInner: {
-    width: 6,
-    height: 6,
+    width: 7,
+    height: 7,
     backgroundColor: '#1E1B4B',
-    borderRadius: 3,
+    borderRadius: 4,
   },
 
   // Beak
@@ -246,20 +280,24 @@ const styles = StyleSheet.create({
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
     borderTopColor: '#FCD34D',
-    marginTop: 3,
-  },
-
-  // Wing nubs
-  wings: {
-    flexDirection: 'row',
-    gap: 20,
     marginTop: 4,
   },
+
+  // Wings
+  wings: {
+    flexDirection: 'row',
+    gap: 18,
+    marginTop: 6,
+  },
   wing: {
-    width: 10,
-    height: 12,
+    width: 11,
+    height: 13,
     backgroundColor: '#78350F',
-    borderRadius: 5,
+    borderRadius: 6,
+  },
+  wingLeft: {},
+  wingRight: {
+    transformOrigin: 'top center',
   },
 
   // Label
@@ -267,7 +305,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 10,
     color: '#92400E',
-    letterSpacing: 1,
+    letterSpacing: 1.2,
     marginTop: 4,
   },
 });

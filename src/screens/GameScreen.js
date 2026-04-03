@@ -189,10 +189,24 @@ export default function GameScreen({ route, navigation }) {
       pictureScale.value = withDelay(200, withSpring(1, { damping: 8, stiffness: 100 }));
       boardOpacity.value = withDelay(400, withTiming(1, { duration: 400 }));
 
-      // Speak the first word on load
+      // Speak HintBuddy intro, then word1 + sentence
       setTimeout(() => {
-        if (isMountedRef.current && puzzle) { speakWord(puzzle.word1); setTimeout(() => { if (isMountedRef.current) speakWord(getWordSentence(puzzle.word1)); }, 1800); }
-      }, 800);
+        if (!isMountedRef.current || !puzzle) return;
+        speakWord("Hi! I am your helper buddy. If you get stuck, just tap me!", {
+          onDone: () => {
+            setTimeout(() => {
+              if (!isMountedRef.current) return;
+              speakWord(puzzle.word1, {
+                onDone: () => {
+                  setTimeout(() => {
+                    if (isMountedRef.current) speakWord(getWordSentence(puzzle.word1));
+                  }, 350);
+                },
+              });
+            }, 300);
+          },
+        });
+      }, 900);
     }, 100);
 
     return () => { clearTimeout(t); timer.reset(); };
@@ -202,12 +216,20 @@ export default function GameScreen({ route, navigation }) {
   useEffect(() => {
     if (game.phase === 'common_finding') {
       setMascotMsg(MASCOT_MESSAGES.common_finding);
+      setTimeout(() => {
+        if (isMountedRef.current)
+          speakWord("Awesome! Now find the letters that appear in BOTH words!");
+      }, 500);
     }
     if (game.phase === 'word_building' && !timerStarted.current) {
       timerStarted.current = true;
       countdownSpoken.current = new Set();
       timer.start();
       setMascotMsg(MASCOT_MESSAGES.word_building);
+      setTimeout(() => {
+        if (isMountedRef.current)
+          speakWord("Brilliant! Now use those letters to build as many words as you can!");
+      }, 500);
     }
   }, [game.phase]);
 
@@ -448,8 +470,13 @@ export default function GameScreen({ route, navigation }) {
       .filter(w => !game.foundWords.includes(w.toLowerCase()))
       .sort((a, b) => a.length - b.length);
     if (unsolved.length > 0) {
-      setTimeout(() => speakPhonics(unsolved[0]), 100);
-      setMascotMsg(`💡 Try: ${unsolved[0][0].toUpperCase()}${'_'.repeat(unsolved[0].length - 1)} (${unsolved[0].length} letters)`);
+      const word = unsolved[0];
+      setMascotMsg(`💡 Try: ${word[0].toUpperCase()}${'_'.repeat(word.length - 1)} (${word.length} letters)`);
+      speakWord("Ooh! Let me help! Listen carefully...", {
+        onDone: () => {
+          setTimeout(() => speakPhonics(word), 200);
+        },
+      });
     }
   }
 
@@ -462,19 +489,25 @@ export default function GameScreen({ route, navigation }) {
     if (firstWrongIdx !== -1) {
       const corrected = slots.map((s, i) => i >= firstWrongIdx ? '' : s);
       dispatch({ type: GAME_ACTIONS.SET_SPELLING_SLOTS, payload: corrected });
-      speakWord(`Hmm, not quite. Let me give you a little hint!`, {
+      speakWord("Hmm, not quite! Let me help you with that letter!", {
         onDone: () => {
           setTimeout(() => {
             speakPhonics(t[firstWrongIdx]);
             setTimeout(() => speakWord(`Try the sound ${t[firstWrongIdx]}`), 1200);
-          }, 400);
+          }, 300);
         },
       });
     } else {
       const nextIdx = slots.indexOf('');
       if (nextIdx === -1) return;
-      speakPhonics(t[nextIdx]);
-      setTimeout(() => speakWord(`The next sound is ${t[nextIdx]}`), 1200);
+      speakWord("You are doing great! The next sound is...", {
+        onDone: () => {
+          setTimeout(() => {
+            speakPhonics(t[nextIdx]);
+            setTimeout(() => speakWord(`The sound is ${t[nextIdx]}`), 1200);
+          }, 200);
+        },
+      });
     }
   }
 
