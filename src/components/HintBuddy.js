@@ -296,9 +296,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   wingLeft: {},
-  wingRight: {
-    transformOrigin: 'top center',
-  },
+  wingRight: {},
 
   // Label
   label: {

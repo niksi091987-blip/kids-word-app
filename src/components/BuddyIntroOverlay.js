@@ -38,8 +38,8 @@ export default function BuddyIntroOverlay({ show, onReady, onDismissed }) {
         withSpring(1.08, { damping: 8, stiffness: 220 }),
         withSpring(1.0,  { damping: 14, stiffness: 260 }),
       );
-      // Speak immediately as popup appears — don't wait for animation to finish
-      runOnJS(onReady)();
+      // Speak immediately as popup appears — direct call (we're in plain JS, not a worklet)
+      onReady();
 
       // Owl idle bounce while overlay is showing
       owlBounce.value = withRepeat(
