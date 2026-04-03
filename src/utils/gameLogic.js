@@ -65,10 +65,10 @@ export function getSpellingHint(correctWord) {
 // Get difficulty parameters
 function getDifficultyParams(level) {
   if (level <= 2) {
-    // Levels 1-2: simple 3-letter words for youngest kids
-    return { wordLengths: [3], minCommon: 3, maxCommon: 3, timeBonus: 120 };
+    // Levels 1-2: mix of 3- and 4-letter words — ensures 3 common letters are achievable
+    return { wordLengths: [3, 4], minCommon: 3, maxCommon: 4, timeBonus: 120 };
   } else if (level <= 3) {
-    return { wordLengths: [3, 4], minCommon: 3, maxCommon: 4, timeBonus: 110 };
+    return { wordLengths: [4], minCommon: 3, maxCommon: 4, timeBonus: 110 };
   } else if (level <= 4) {
     return { wordLengths: [4], minCommon: 3, maxCommon: 4, timeBonus: 100 };
   } else if (level <= 5) {
@@ -132,7 +132,7 @@ export function generatePuzzle(level, usedPairs = []) {
     }
   }
 
-  // Fallback: relax constraints but still require emojis (ignore used pairs to avoid infinite loop)
+  // Fallback: relax only the maxCommon constraint — still enforce minimum 3 common letters
   for (let i = 0; i < shuffled.length; i++) {
     for (let j = i + 1; j < Math.min(i + 100, shuffled.length); j++) {
       const w1 = shuffled[i];
@@ -140,7 +140,7 @@ export function generatePuzzle(level, usedPairs = []) {
       if (w1 === w2) continue;
       const common = findCommonLetters(w1, w2);
 
-      if (common.length >= 2) {
+      if (common.length >= 3) {
         const validWords = findAllValidWords(common);
         if (validWords.length > 0) {
           return {
@@ -155,12 +155,13 @@ export function generatePuzzle(level, usedPairs = []) {
     }
   }
 
-  // Ultimate fallback
+  // Ultimate fallback — bear/pear always share a, e, r (3 common letters)
+  const fallbackCommon = findCommonLetters('bear', 'pear');
   return {
-    word1: 'cat',
-    word2: 'hat',
-    commonLetters: ['a', 't'],
-    possibleWords: ['at'],
+    word1: 'bear',
+    word2: 'pear',
+    commonLetters: fallbackCommon,
+    possibleWords: findAllValidWords(fallbackCommon),
     difficulty: level,
   };
 }

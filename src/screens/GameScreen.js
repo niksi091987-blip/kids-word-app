@@ -39,6 +39,7 @@ import TimerBar from '../components/TimerBar';
 import FoundWordsList from '../components/FoundWordsList';
 import GameButton from '../components/GameButton';
 import HintBuddy from '../components/HintBuddy';
+import BuddyIntroOverlay from '../components/BuddyIntroOverlay';
 
 // ── Theme ──────────────────────────────────────────────────────────────────────
 const BG = ['#1565C0', '#1E88E5', '#42A5F5', '#7EC8F0'];
@@ -108,8 +109,11 @@ export default function GameScreen({ route, navigation }) {
   const gameRef = useRef(game);
   const countdownSpoken = useRef(new Set());
   const isMountedRef = useRef(true);
+  const introPuzzleRef = useRef(null);       // holds puzzle while intro overlay is showing
   const [mascotMsg, setMascotMsg] = useState(MASCOT_MESSAGES.spelling_word1);
   const [spellingPhase, setSpellingPhase] = useState('idle'); // 'idle' | 'wrong' | 'correct'
+  const [overlayMounted, setOverlayMounted] = useState(false);
+  const [overlayVisible, setOverlayVisible] = useState(false);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -189,24 +193,13 @@ export default function GameScreen({ route, navigation }) {
       pictureScale.value = withDelay(200, withSpring(1, { damping: 8, stiffness: 100 }));
       boardOpacity.value = withDelay(400, withTiming(1, { duration: 400 }));
 
-      // Speak HintBuddy intro, then word1 + sentence
+      // Show intro overlay — speech is triggered by the overlay's onReady callback
+      introPuzzleRef.current = puzzle;
       setTimeout(() => {
-        if (!isMountedRef.current || !puzzle) return;
-        speakWord("Hi! I am your helper buddy. If you get stuck, just tap me!", {
-          onDone: () => {
-            setTimeout(() => {
-              if (!isMountedRef.current) return;
-              speakWord(puzzle.word1, {
-                onDone: () => {
-                  setTimeout(() => {
-                    if (isMountedRef.current) speakWord(getWordSentence(puzzle.word1));
-                  }, 350);
-                },
-              });
-            }, 300);
-          },
-        });
-      }, 900);
+        if (!isMountedRef.current) return;
+        setOverlayMounted(true);
+        setTimeout(() => { if (isMountedRef.current) setOverlayVisible(true); }, 80);
+      }, 700);
     }, 100);
 
     return () => { clearTimeout(t); timer.reset(); };
@@ -509,6 +502,32 @@ export default function GameScreen({ route, navigation }) {
         },
       });
     }
+  }
+
+  // ── BuddyIntroOverlay callbacks ───────────────────────────────────────────────
+  function handleBuddyIntroReady() {
+    // Called once the overlay entrance animation finishes → speak the intro
+    speakWord("Hi! I am your helper buddy. If you get stuck, just tap me!", {
+      onDone: () => {
+        setTimeout(() => {
+          if (isMountedRef.current) setOverlayVisible(false);
+        }, 500);
+      },
+    });
+  }
+
+  function handleBuddyIntroDismissed() {
+    // Called once the overlay exit animation finishes → unmount overlay, start word
+    setOverlayMounted(false);
+    const puzzle = introPuzzleRef.current;
+    if (!puzzle || !isMountedRef.current) return;
+    speakWord(puzzle.word1, {
+      onDone: () => {
+        setTimeout(() => {
+          if (isMountedRef.current) speakWord(getWordSentence(puzzle.word1));
+        }, 350);
+      },
+    });
   }
 
   function handlePicturePress() {
@@ -854,6 +873,15 @@ export default function GameScreen({ route, navigation }) {
           )}
         </ScrollView>
       </SafeAreaView>
+
+      {/* Intro overlay — renders on top of everything when a new puzzle loads */}
+      {overlayMounted && (
+        <BuddyIntroOverlay
+          show={overlayVisible}
+          onReady={handleBuddyIntroReady}
+          onDismissed={handleBuddyIntroDismissed}
+        />
+      )}
     </View>
   );
 }
