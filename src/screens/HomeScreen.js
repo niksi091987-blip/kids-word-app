@@ -321,6 +321,16 @@ export default function HomeScreen({ navigation }) {
             ))}
           </Animated.View>
 
+          {/* Sticker book shortcut */}
+          <Pressable
+            onPress={() => navigation.navigate('StickerBook')}
+            style={ui.stickerRow}
+          >
+            <Text style={ui.stickerRowEmoji}>🎁</Text>
+            <Text style={ui.stickerRowText}>My Sticker Book</Text>
+            <Text style={ui.stickerRowArrow}>›</Text>
+          </Pressable>
+
           {/* Difficulty selector */}
           <View style={ui.diffRow}>
             {[
@@ -475,6 +485,19 @@ const ui = StyleSheet.create({
   statEmoji: { fontSize:22 },
   statNum:   { fontFamily:'Nunito_800ExtraBold', fontSize:22 },
   statLabel: { fontFamily:'Nunito_700Bold', fontSize:10, letterSpacing:1 },
+
+  stickerRow: {
+    flexDirection:'row', alignItems:'center', gap:10,
+    backgroundColor:'rgba(255,255,255,0.18)', borderRadius:18,
+    paddingHorizontal:18, paddingVertical:12, marginBottom:10,
+    borderWidth:1.5, borderColor:'rgba(255,255,255,0.35)',
+  },
+  stickerRowEmoji: { fontSize:22 },
+  stickerRowText: {
+    flex:1, fontFamily:'Nunito_800ExtraBold', fontSize:15, color:'#fff',
+    textShadowColor:'rgba(0,0,0,0.2)', textShadowOffset:{width:0,height:1}, textShadowRadius:2,
+  },
+  stickerRowArrow: { fontFamily:'Nunito_800ExtraBold', fontSize:20, color:'rgba(255,255,255,0.70)' },
 
   diffRow: {
     flexDirection:'row', gap:10, marginBottom:14, marginTop:2,

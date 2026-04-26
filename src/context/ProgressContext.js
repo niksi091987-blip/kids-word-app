@@ -29,6 +29,7 @@ const initialProgressState = {
   lastPlayedDate: null,
   badges: [],
   usedPairs: [],
+  unlockedStickers: [],
 };
 
 // ── Action Types ───────────────────────────────────────────────────────────────
@@ -44,6 +45,7 @@ export const PROGRESS_ACTIONS = {
   UPDATE_STREAK:    'UPDATE_STREAK',
   ADD_WORDS_FOUND:  'ADD_WORDS_FOUND',
   RECORD_PAIR:      'RECORD_PAIR',
+  UNLOCK_STICKER:   'UNLOCK_STICKER',
 };
 
 // ── Reducer ────────────────────────────────────────────────────────────────────
@@ -155,6 +157,12 @@ function progressReducer(state, action) {
       if (state.usedPairs.includes(key)) return state;
       const updated = [...state.usedPairs, key];
       return { ...state, usedPairs: updated.length > 500 ? updated.slice(-400) : updated };
+    }
+
+    case PROGRESS_ACTIONS.UNLOCK_STICKER: {
+      const { level } = action.payload;
+      if ((state.unlockedStickers || []).includes(level)) return state;
+      return { ...state, unlockedStickers: [...(state.unlockedStickers || []), level] };
     }
 
     case PROGRESS_ACTIONS.RESET_ALL:

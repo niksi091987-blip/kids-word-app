@@ -30,6 +30,7 @@ import IntroScreen from './src/screens/IntroScreen';
 import WelcomeScreen from './src/screens/WelcomeScreen';
 import AvatarScreen from './src/screens/AvatarScreen';
 import LoginScreen from './src/screens/LoginScreen';
+import StickerBookScreen from './src/screens/StickerBookScreen';
 
 import { COLORS } from './src/constants/colors';
 
@@ -60,7 +61,8 @@ function AppNavigator() {
       <Stack.Screen name="Welcome"  component={WelcomeScreen}  options={{ animation: 'fade' }} />
       <Stack.Screen name="Login"    component={LoginScreen}    options={{ animation: 'fade' }} />
       <Stack.Screen name="Avatar"   component={AvatarScreen}   options={{ animation: 'slide_from_bottom' }} />
-      <Stack.Screen name="Home"     component={HomeScreen} />
+      <Stack.Screen name="Home"        component={HomeScreen} />
+      <Stack.Screen name="StickerBook" component={StickerBookScreen} options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen
         name="LevelSelect"
         component={LevelSelectScreen}
