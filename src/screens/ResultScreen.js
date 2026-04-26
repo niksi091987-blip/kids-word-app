@@ -11,9 +11,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
 import { useProgress } from '../context/ProgressContext';
+import { useSpeech } from '../hooks/useSpeech';
 import { TOTAL_LEVELS } from '../constants/config';
 import { getWordEmoji } from '../data/wordEmojis';
 import LexieBadge from '../components/LexieBadge';
+import PlayerAvatar from '../components/PlayerAvatar';
 
 const { width: SW } = Dimensions.get('window');
 const BG = ['#1565C0', '#1E88E5', '#42A5F5', '#7EC8F0'];
@@ -140,9 +142,12 @@ export default function ResultScreen({ route, navigation }) {
     timeTaken = 0,
     possibleWords = [],
     puzzle = null,
+    timerRanOut = false,
+    allFound = false,
   } = route.params ?? {};
 
   const { state: progress } = useProgress();
+  const { speakWord } = useSpeech();
 
   // Card entrance
   const cardY   = useSharedValue(40);
@@ -171,7 +176,17 @@ export default function ResultScreen({ route, navigation }) {
   const accentDk  = LEVEL_DK[lvlIdx];
   const isLastLevel  = level >= TOTAL_LEVELS;
   const nextUnlocked = !isLastLevel && progress.levels[level + 1]?.unlocked === true;
-  const allFound     = wordsFound.length >= possibleWords.length && possibleWords.length > 0;
+  const allFoundLocal = wordsFound.length >= possibleWords.length && possibleWords.length > 0;
+  const isAllFound = allFound || allFoundLocal;
+
+  // Speak result message on mount
+  useEffect(() => {
+    if (timerRanOut) {
+      speakWord("Time's up! Wow, look how many words you found. That was really good!");
+    } else if (isAllFound) {
+      speakWord("Whoo hoo! You found every single word! That is absolutely amazing!");
+    }
+  }, []);
 
   const formatTime = (s) => {
     const m = Math.floor(s / 60);
@@ -192,12 +207,20 @@ export default function ResultScreen({ route, navigation }) {
 
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
 
+          {/* ── Player avatar celebrating ── */}
+          <PlayerAvatar variant="result" stars={stars} />
+
           {/* ── Result card ── */}
           <Animated.View style={[styles.card, cardStyle]}>
 
             {/* Level badge */}
-            <View style={[styles.levelBadge, { backgroundColor: accentBg, borderBottomColor: accentDk }]}>
-              <Text style={styles.levelBadgeText}>LEVEL {level} COMPLETE!</Text>
+            <View style={[styles.levelBadge, {
+              backgroundColor: timerRanOut ? '#EF4444' : isAllFound ? '#27AE60' : accentBg,
+              borderBottomColor: timerRanOut ? '#B91C1C' : isAllFound ? '#1A7A42' : accentDk,
+            }]}>
+              <Text style={styles.levelBadgeText}>
+                {timerRanOut ? '⏰ TIME\'S UP!' : isAllFound ? '🌟 ALL WORDS FOUND!' : `LEVEL ${level} COMPLETE!`}
+              </Text>
             </View>
 
             {/* Stars */}
@@ -239,7 +262,7 @@ export default function ResultScreen({ route, navigation }) {
               <View style={styles.wordsSection}>
                 <View style={styles.wordsSectionHeader}>
                   <Text style={styles.sectionTitle}>ALL WORDS IN THIS PUZZLE</Text>
-                  <View style={[styles.countPill, { backgroundColor: allFound ? '#27AE60' : accentBg }]}>
+                  <View style={[styles.countPill, { backgroundColor: isAllFound ? '#27AE60' : accentBg }]}>
                     <Text style={styles.countPillText}>{wordsFound.length}/{possibleWords.length}</Text>
                   </View>
                 </View>
@@ -257,7 +280,7 @@ export default function ResultScreen({ route, navigation }) {
                     );
                   })}
                 </View>
-                {allFound && (
+                {isAllFound && (
                   <Text style={styles.allFoundBanner}>🎉 You found every word!</Text>
                 )}
               </View>
@@ -271,14 +294,14 @@ export default function ResultScreen({ route, navigation }) {
                 label="▶  NEXT LEVEL"
                 color="#27AE60" dark="#1A7A42"
                 large
-                onPress={() => navigation.reset({ index: 1, routes: [{ name: 'Home' }, { name: 'Game', params: { level: level + 1 } }] })}
+                onPress={() => navigation.reset({ index: 1, routes: [{ name: 'Home' }, { name: 'Game', params: { level: level + 1, skipIntro: true } }] })}
               />
             )}
             <ActionBtn
               label="↺  PLAY AGAIN"
               color="#F97316" dark="#A83C00"
               large={!(nextUnlocked && stars > 0)}
-              onPress={() => navigation.reset({ index: 1, routes: [{ name: 'Home' }, { name: 'Game', params: { level, puzzle } }] })}
+              onPress={() => navigation.reset({ index: 1, routes: [{ name: 'Home' }, { name: 'Game', params: { level, puzzle, skipIntro: true } }] })}
             />
             <View style={styles.btnRow}>
               <ActionBtn

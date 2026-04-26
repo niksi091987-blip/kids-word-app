@@ -72,5 +72,10 @@ export const MIN_SUBMIT_LETTERS = 2;
 // Total levels
 export const TOTAL_LEVELS = 10;
 
+// Guest play limit — levels beyond this require a Google account
+export const GUEST_LEVEL_LIMIT = 5;
+
 // AsyncStorage keys
-export const STORAGE_KEY = '@word_match_kids_progress_v1';
+export const STORAGE_KEY = '@word_match_kids_progress_v1'; // legacy (kept for migration)
+export const PROGRESS_KEY_GUEST  = 'wm_progress_guest';
+export const PROGRESS_KEY_GOOGLE = 'wm_progress_google_';

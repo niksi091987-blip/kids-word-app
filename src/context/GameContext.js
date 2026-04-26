@@ -268,7 +268,17 @@ function gameReducer(state, action) {
       if (!tile) return state;
       const w1 = state.puzzle?.word1?.toLowerCase() || '';
       const w2 = state.puzzle?.word2?.toLowerCase() || '';
-      const isCommon = w1.includes(tile.letter) && w2.includes(tile.letter);
+      const countInW1 = w1.split('').filter(c => c === tile.letter).length;
+      const countInW2 = w2.split('').filter(c => c === tile.letter).length;
+      const isCommon = countInW1 > 0 && countInW2 > 0;
+      const maxSelect = Math.min(countInW1, countInW2);
+      // When selecting (not deselecting), block if already at max for this letter+source
+      if (!tile.selected && isCommon) {
+        const alreadySelected = state.wordTiles.filter(
+          t => t.letter === tile.letter && t.wordSource === tile.wordSource && t.selected
+        ).length;
+        if (alreadySelected >= maxSelect) return state;
+      }
       const newTiles = state.wordTiles.map(t =>
         t.id === tileId
           ? isCommon
@@ -290,16 +300,24 @@ function gameReducer(state, action) {
     }
 
     case GAME_ACTIONS.START_BUILDING: {
-      // Deduplicate by letter — each common letter appears once
-      const seen = new Set();
-      const selectedTiles = state.wordTiles
-        .filter(t => t.selected)
-        .filter(t => { if (seen.has(t.letter)) return false; seen.add(t.letter); return true; })
-        .map(t => ({ ...t, used: false, selected: false }));
+      // Count how many of each letter the user found from word1 selections
+      // (word2 mirrors word1 due to auto-select, so word1 count = actual common count found)
+      const letterCounts = {};
+      state.wordTiles
+        .filter(t => t.selected && t.wordSource === 1)
+        .forEach(t => { letterCounts[t.letter] = (letterCounts[t.letter] || 0) + 1; });
+      // Build one tile per found common letter instance
+      const buildTiles = [];
+      let idx = 0;
+      for (const [letter, count] of Object.entries(letterCounts)) {
+        for (let i = 0; i < count; i++) {
+          buildTiles.push({ id: `build_${letter}_${idx++}`, letter, used: false, selected: false });
+        }
+      }
       return {
         ...state,
         phase: 'word_building',
-        wordTiles: selectedTiles,
+        wordTiles: buildTiles,
         buildSlots: new Array(8).fill(null),
       };
     }

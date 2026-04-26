@@ -1,3 +1,6 @@
+import * as WebBrowser from 'expo-web-browser';
+WebBrowser.maybeCompleteAuthSession({ skipRedirectCheck: true });
+
 import React, { useEffect, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
@@ -16,12 +19,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { ProgressProvider } from './src/context/ProgressContext';
 import { GameProvider } from './src/context/GameContext';
+import { UserProvider } from './src/context/UserContext';
 
 import HomeScreen from './src/screens/HomeScreen';
 import LevelSelectScreen from './src/screens/LevelSelectScreen';
 import GameScreen from './src/screens/GameScreen';
 import ResultScreen from './src/screens/ResultScreen';
+import WordLearnScreen from './src/screens/WordLearnScreen';
 import IntroScreen from './src/screens/IntroScreen';
+import WelcomeScreen from './src/screens/WelcomeScreen';
+import AvatarScreen from './src/screens/AvatarScreen';
+import LoginScreen from './src/screens/LoginScreen';
 
 import { COLORS } from './src/constants/colors';
 
@@ -48,8 +56,11 @@ function AppNavigator() {
         contentStyle: { backgroundColor: COLORS.bgDark || COLORS.background },
       }}
     >
-      <Stack.Screen name="Intro" component={IntroScreen} options={{ animation: 'fade' }} />
-      <Stack.Screen name="Home" component={HomeScreen} />
+      <Stack.Screen name="Intro"    component={IntroScreen}    options={{ animation: 'fade' }} />
+      <Stack.Screen name="Welcome"  component={WelcomeScreen}  options={{ animation: 'fade' }} />
+      <Stack.Screen name="Login"    component={LoginScreen}    options={{ animation: 'fade' }} />
+      <Stack.Screen name="Avatar"   component={AvatarScreen}   options={{ animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="Home"     component={HomeScreen} />
       <Stack.Screen
         name="LevelSelect"
         component={LevelSelectScreen}
@@ -58,6 +69,11 @@ function AppNavigator() {
       <Stack.Screen
         name="Game"
         component={GameScreen}
+        options={{ animation: 'fade_from_bottom', gestureEnabled: false }}
+      />
+      <Stack.Screen
+        name="WordLearn"
+        component={WordLearnScreen}
         options={{ animation: 'fade_from_bottom', gestureEnabled: false }}
       />
       <Stack.Screen
@@ -88,6 +104,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
+        <UserProvider>
         <ProgressProvider>
           <GameProvider>
             <NavigationContainer>
@@ -96,6 +113,7 @@ export default function App() {
             </NavigationContainer>
           </GameProvider>
         </ProgressProvider>
+        </UserProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

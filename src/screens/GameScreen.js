@@ -23,12 +23,15 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useGame, GAME_ACTIONS } from '../context/GameContext';
 import { useProgress, PROGRESS_ACTIONS } from '../context/ProgressContext';
+import { useUser } from '../context/UserContext';
+import { GUEST_LEVEL_LIMIT } from '../constants/config';
 import { useTimer } from '../hooks/useTimer';
 import { useSound } from '../hooks/useSound';
 import { useSpeech } from '../hooks/useSpeech';
 import { generatePuzzle, getStarRating, getSpellingHint } from '../utils/gameLogic';
 import { getTimerSeconds, SPELL_SCORE_FIRST_TRY, SPELL_SCORE_WITH_HINT } from '../constants/config';
 import LexieBadge from '../components/LexieBadge';
+import PlayerAvatar from '../components/PlayerAvatar';
 import { getWordEmoji, getWordSentence } from '../data/wordEmojis';
 
 import AlphabetPanel from '../components/AlphabetPanel';
@@ -96,9 +99,10 @@ const MASCOT_MESSAGES = {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function GameScreen({ route, navigation }) {
-  const { level = 1, puzzle: replayPuzzle = null } = route.params ?? {};
+  const { level = 1, puzzle: replayPuzzle = null, skipIntro = false } = route.params ?? {};
   const { state: game, dispatch, submitSpelling, submitWord } = useGame();
   const { state: progress, dispatch: progressDispatch } = useProgress();
+  const { state: user } = useUser();
   const timer = useTimer();
   const { play } = useSound();
   const { speakWord, speakPhonics, speakLetter, stopSpeech } = useSpeech();
@@ -112,10 +116,18 @@ export default function GameScreen({ route, navigation }) {
   const introPuzzleRef = useRef(null);       // holds puzzle while intro overlay is showing
   const allFoundHandledRef = useRef(false);  // prevents double-fire of celebration
   const prevFoundCountRef = useRef(0);       // tracks last spoken found-count
+  const hintTimerRef = useRef(null);         // clears stale phonics timer on rapid hint taps
   const [mascotMsg, setMascotMsg] = useState(MASCOT_MESSAGES.spelling_word1);
   const [spellingPhase, setSpellingPhase] = useState('idle'); // 'idle' | 'wrong' | 'correct'
   const [overlayMounted, setOverlayMounted] = useState(false);
   const [overlayVisible, setOverlayVisible] = useState(false);
+
+  // ── Guest level guard ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (user.type === 'guest' && level > GUEST_LEVEL_LIMIT) {
+      navigation.replace('Home');
+    }
+  }, [user.type, level]);
 
   // ── Derived ───────────────────────────────────────────────────────────────────
   const isSpellingPhase = game.phase === 'spelling_word1' || game.phase === 'spelling_word2';
@@ -135,11 +147,22 @@ export default function GameScreen({ route, navigation }) {
   const builtWordCount = game.buildSlots.filter(Boolean).length;
   const canSubmitWord = builtWordCount >= 2 && game.phase === 'word_building';
 
-  const uniqueCommonLetters = game.puzzle ? [...new Set(game.puzzle.commonLetters)] : [];
-  const selectedLetters = game.wordTiles.filter(t => t.selected).map(t => t.letter);
-  const allCommonLettersFound = uniqueCommonLetters.length > 0 &&
-    uniqueCommonLetters.every(letter => selectedLetters.includes(letter));
-  const foundCommonCount = uniqueCommonLetters.filter(l => selectedLetters.includes(l)).length;
+  const commonLetters = game.puzzle ? game.puzzle.commonLetters : [];
+  // Only count word1 tiles — word2 is auto-mirrored, so word1 selections == what the kid found
+  const word1Selected = game.wordTiles
+    .filter(t => t.selected && t.wordSource === 1)
+    .map(t => t.letter);
+  // Multiset intersection: how many of the required commonLetters have a matching word1 selection
+  const foundCommonCount = (() => {
+    const pool = [...word1Selected];
+    let n = 0;
+    for (const l of commonLetters) {
+      const idx = pool.indexOf(l);
+      if (idx !== -1) { n++; pool.splice(idx, 1); }
+    }
+    return n;
+  })();
+  const allCommonLettersFound = commonLetters.length > 0 && foundCommonCount === commonLetters.length;
 
   const highlightLetter = game.spellingHintActive && game.puzzle
     ? (game.spellingTarget === 1 ? game.puzzle.word1[0] : game.puzzle.word2[0])
@@ -162,6 +185,8 @@ export default function GameScreen({ route, navigation }) {
   const star1 = useSharedValue(0);
   const star2 = useSharedValue(0);
   const star3 = useSharedValue(0);
+  const goalCardScale = useSharedValue(0);
+  const goalCardPulse = useSharedValue(1);
 
   useEffect(() => {
     scoreGlow.value = withRepeat(withSequence(
@@ -202,6 +227,9 @@ export default function GameScreen({ route, navigation }) {
     ],
   }));
   const boardStyle = useAnimatedStyle(() => ({ opacity: boardOpacity.value }));
+  const goalCardStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: goalCardScale.value * goalCardPulse.value }],
+  }));
 
   // ── Mount: generate puzzle ────────────────────────────────────────────────────
   useEffect(() => {
@@ -225,13 +253,24 @@ export default function GameScreen({ route, navigation }) {
       pictureScale.value = withDelay(200, withSpring(1, { damping: 8, stiffness: 100 }));
       boardOpacity.value = withDelay(400, withTiming(1, { duration: 400 }));
 
-      // Show intro overlay — speech is triggered by the overlay's onReady callback
+      // Show intro overlay only on first play — skip if coming from Next Level / Play Again
       introPuzzleRef.current = puzzle;
-      setTimeout(() => {
-        if (!isMountedRef.current) return;
-        setOverlayMounted(true);
-        setTimeout(() => { if (isMountedRef.current) setOverlayVisible(true); }, 80);
-      }, 700);
+      if (skipIntro || level > 1) {
+        // Speak the first word directly without the intro overlay
+        setTimeout(() => {
+          if (!isMountedRef.current) return;
+          speakWord(puzzle.word1);
+          setTimeout(() => {
+            if (isMountedRef.current) speakWord(getWordSentence(puzzle.word1));
+          }, 1400);
+        }, 800);
+      } else {
+        setTimeout(() => {
+          if (!isMountedRef.current) return;
+          setOverlayMounted(true);
+          setTimeout(() => { if (isMountedRef.current) setOverlayVisible(true); }, 80);
+        }, 700);
+      }
     }, 100);
 
     return () => { clearTimeout(t); timer.reset(); };
@@ -241,24 +280,29 @@ export default function GameScreen({ route, navigation }) {
   useEffect(() => {
     if (game.phase === 'common_finding') {
       setMascotMsg(MASCOT_MESSAGES.common_finding);
-      setTimeout(() => {
-        if (isMountedRef.current)
-          speakWord("Awesome! Now find the letters that appear in BOTH words!");
-      }, 500);
+      // No speech here — handleCheckSpelling already speaks the transition into this phase
     }
     if (game.phase === 'word_building' && !timerStarted.current) {
       timerStarted.current = true;
       countdownSpoken.current = new Set();
       timer.start();
       setMascotMsg(MASCOT_MESSAGES.word_building);
+      // Bounce the goal card in, then start a gentle pulse to attract taps
+      goalCardScale.value = withDelay(300, withSpring(1, { damping: 6, stiffness: 120 }));
+      goalCardPulse.value = withDelay(1200, withRepeat(withSequence(
+        withTiming(1.04, { duration: 500, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.0,  { duration: 500, easing: Easing.inOut(Easing.ease) }),
+        withTiming(1.0,  { duration: 1800 }),
+      ), -1));
       setTimeout(() => {
-        if (isMountedRef.current)
-          speakWord("Brilliant! Now use those letters to build as many words as you can!");
+        if (!isMountedRef.current) return;
+        const total = game.puzzle?.possibleWords?.length ?? 0;
+        speakWord(`Brilliant! Now use those letters to build as many words as you can! Try to find ${total} word${total !== 1 ? 's' : ''}!`);
       }, 500);
     }
   }, [game.phase]);
 
-  // ── Common-finding: live progress speech + auto-advance when all found ─────────
+  // ── Common-finding: auto-advance when all letters found ─────────────────────
   useEffect(() => {
     if (game.phase !== 'common_finding' || !game.puzzle) return;
     if (foundCommonCount === 0) return;
@@ -269,7 +313,7 @@ export default function GameScreen({ route, navigation }) {
     }
     prevFoundCountRef.current = foundCommonCount;
 
-    const remaining = uniqueCommonLetters.length - foundCommonCount;
+    const remaining = commonLetters.length - foundCommonCount;
 
     if (remaining === 0 && !allFoundHandledRef.current) {
       // ── ALL LETTERS FOUND ──────────────────────────────────────────────────
@@ -277,22 +321,12 @@ export default function GameScreen({ route, navigation }) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       play('word_correct');
       setMascotMsg('🎉 WOW! You found ALL the letters!');
-      speakWord("Wow wow wow! You found ALL the letters! That is absolutely amazing! Now let's build some words!", {
-        onDone: () => {
-          setTimeout(() => {
-            if (isMountedRef.current) dispatch({ type: GAME_ACTIONS.START_BUILDING });
-          }, 400);
-        },
-      });
-    } else if (remaining === 1) {
-      setMascotMsg('🔥 So close! Just 1 more letter!');
-      speakWord("So close! Just one more letter to find! You can do it!");
-    } else if (remaining === 2) {
-      setMascotMsg(`🔍 Almost there! 2 more letters to go!`);
-      speakWord("Great find! Just two more letters hiding in both words!");
-    } else {
-      setMascotMsg(`🕵️ Good spot! ${remaining} more letters to find!`);
-      speakWord(`Nice one! Keep looking! There are still ${remaining} more letters in both words!`);
+      speakWord("Wow wow wow! You found ALL the letters! That is absolutely amazing! Now let's build some words!");
+      // Advance after a fixed delay — don't rely on speech onDone which can silently
+      // fail on some devices, leaving the game permanently stuck on this screen.
+      setTimeout(() => {
+        if (isMountedRef.current) dispatch({ type: GAME_ACTIONS.START_BUILDING });
+      }, 2800);
     }
   }, [foundCommonCount]); // eslint-disable-line
 
@@ -326,18 +360,13 @@ export default function GameScreen({ route, navigation }) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       const word = game.foundWords[game.foundWords.length - 1];
       setMascotMsg(MASCOT_MESSAGES.word_correct);
-      // Speak word fully, then return to building after a short pause
+      // Speak the found word, return to building after a fixed delay
       if (word) {
+        setTimeout(() => { speakWord(word); }, 150);
         setTimeout(() => {
-          speakWord(word, {
-            onDone: () => {
-              setTimeout(() => {
-                if (!completionHandled.current && isMountedRef.current)
-                  dispatch({ type: GAME_ACTIONS.SET_PHASE, payload: 'word_building' });
-              }, 350);
-            },
-          });
-        }, 150);
+          if (!completionHandled.current && isMountedRef.current)
+            dispatch({ type: GAME_ACTIONS.SET_PHASE, payload: 'word_building' });
+        }, 1200);
       } else {
         const t = setTimeout(() => {
           if (!completionHandled.current) dispatch({ type: GAME_ACTIONS.SET_PHASE, payload: 'word_building' });
@@ -378,12 +407,12 @@ export default function GameScreen({ route, navigation }) {
     const allFound = currentGame.foundWords.length >= (currentGame.puzzle?.possibleWords?.length || 999);
     const timerRanOut = currentGame.secondsLeft === 0 && !allFound;
 
-    const goToResult = () => {
+    const goToWordLearn = () => {
       if (!isMountedRef.current) return;
       play('level_complete');
       progressDispatch({ type: PROGRESS_ACTIONS.COMPLETE_LEVEL, payload: { level, stars, score: currentGame.score } });
       progressDispatch({ type: PROGRESS_ACTIONS.ADD_WORDS_FOUND, payload: { count: currentGame.foundWords.length } });
-      navigation.replace('Result', {
+      navigation.replace('WordLearn', {
         level, stars, score: currentGame.score,
         wordsFound: currentGame.foundWords, timeTaken,
         possibleWords: currentGame.puzzle?.possibleWords || [],
@@ -393,7 +422,7 @@ export default function GameScreen({ route, navigation }) {
       });
     };
 
-    goToResult();
+    goToWordLearn();
   }, [level, timer, progressDispatch, navigation, play, speakWord]);
 
   // ── Spelling handlers ─────────────────────────────────────────────────────────
@@ -432,51 +461,34 @@ export default function GameScreen({ route, navigation }) {
           ? 'Yes! You got it!'
           : 'There you go! You did it!';
 
-      // Chain: correctMsg → target word → advance phase
-      speakWord(correctMsg, {
-        onDone: () => {
+      // Single combined utterance per action — avoids Android QUEUE_FLUSH cutting off audio
+      if (game.spellingTarget === 1) {
+        // Word 1 correct: celebrate then bridge to word 2
+        speakWord(`${correctMsg} ${target}.`);
+        // Speak word 2 intro after the first utterance has had time to fully finish
+        if (game.puzzle) {
           setTimeout(() => {
-            speakWord(target, {
-              onDone: () => {
-                setTimeout(() => {
-                  if (!isMountedRef.current) return;
-                  setSpellingPhase('idle');
-                  dispatch({ type: GAME_ACTIONS.ADVANCE_PHASE });
+            if (isMountedRef.current)
+              speakWord(`${game.puzzle.word2}. ${getWordSentence(game.puzzle.word2)}`);
+          }, 3200);
+        }
+      } else {
+        // Word 2 correct: celebrate + bridge to letter hunt in one utterance
+        speakWord(`${correctMsg} ${target}. You spelled both words! Now let's find the letters that appear in both words!`);
+      }
 
-                  if (game.spellingTarget === 1) {
-                    setMascotMsg(MASCOT_MESSAGES.spelling_word2);
-                    if (game.puzzle) {
-                      setTimeout(() => {
-                        speakWord(game.puzzle.word2, {
-                          onDone: () => {
-                            setTimeout(() => speakWord(getWordSentence(game.puzzle.word2)), 400);
-                          },
-                        });
-                      }, 300);
-                    }
-                  } else if (game.spellingTarget === 1) {
-                    // Bounce in the new word 2 emoji
-                    pictureScale.value = 0;
-                    pictureScale.value = withDelay(200, withSpring(1, { damping: 8, stiffness: 100 }));
-                  } else {
-                    // Both words done — introduce common letter hunt
-                    setMascotMsg('🕵️ Find the matching letters!');
-                    setTimeout(() => {
-                      speakWord("Whoo! You spelled both words! Now let's be letter detectives!", {
-                        onDone: () => {
-                          setTimeout(() => {
-                            speakWord("Look carefully. Can you spot the letters that show up in both words?");
-                          }, 300);
-                        },
-                      });
-                    }, 400);
-                  }
-                }, 400);
-              },
-            });
-          }, 300);
-        },
-      });
+      setTimeout(() => {
+        if (!isMountedRef.current) return;
+        setSpellingPhase('idle');
+        dispatch({ type: GAME_ACTIONS.ADVANCE_PHASE });
+        if (game.spellingTarget === 1) {
+          setMascotMsg(MASCOT_MESSAGES.spelling_word2);
+          pictureScale.value = 0;
+          pictureScale.value = withDelay(200, withSpring(1, { damping: 8, stiffness: 100 }));
+        } else {
+          setMascotMsg('🕵️ Find the matching letters!');
+        }
+      }, 2400);
     } else {
       play('word_wrong');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
@@ -491,17 +503,13 @@ export default function GameScreen({ route, navigation }) {
           ? 'Almost! I know you can get it!'
           : "So close! You're nearly there!";
 
-      // Speak wrong message, then reset after it finishes
-      speakWord(wrongMsg, {
-        onDone: () => {
-          setTimeout(() => {
-            if (isMountedRef.current) {
-              setSpellingPhase('idle');
-              dispatch({ type: GAME_ACTIONS.CLEAR_SPELLING });
-            }
-          }, 400);
-        },
-      });
+      speakWord(wrongMsg);
+      setTimeout(() => {
+        if (isMountedRef.current) {
+          setSpellingPhase('idle');
+          dispatch({ type: GAME_ACTIONS.CLEAR_SPELLING });
+        }
+      }, 1800);
     }
   }
 
@@ -535,11 +543,10 @@ export default function GameScreen({ route, navigation }) {
     if (unsolved.length > 0) {
       const word = unsolved[0];
       setMascotMsg(`💡 Try: ${word[0].toUpperCase()}${'_'.repeat(word.length - 1)} (${word.length} letters)`);
-      speakWord("Ooh! Let me help! Listen carefully...", {
-        onDone: () => {
-          setTimeout(() => speakPhonics(word), 200);
-        },
-      });
+      clearTimeout(hintTimerRef.current);
+      stopSpeech();
+      speakWord("Ooh! Let me help! Listen carefully...");
+      hintTimerRef.current = setTimeout(() => speakPhonics(word), 2800);
     }
   }
 
@@ -549,41 +556,42 @@ export default function GameScreen({ route, navigation }) {
     const t = (game.spellingTarget === 1 ? game.puzzle.word1 : game.puzzle.word2).toLowerCase();
     const slots = game.spellingSlots;
     const firstWrongIdx = slots.findIndex((s, i) => s !== '' && s !== t[i]);
+    clearTimeout(hintTimerRef.current);
+    stopSpeech();
     if (firstWrongIdx !== -1) {
       const corrected = slots.map((s, i) => i >= firstWrongIdx ? '' : s);
       dispatch({ type: GAME_ACTIONS.SET_SPELLING_SLOTS, payload: corrected });
-      speakWord("Hmm, not quite! Let me help you with that letter!", {
-        onDone: () => {
-          setTimeout(() => {
-            speakPhonics(t[firstWrongIdx]);
-            setTimeout(() => speakWord(`Try the sound ${t[firstWrongIdx]}`), 1200);
-          }, 300);
-        },
-      });
+      speakWord("Hmm, not quite! Let me help you with that letter!");
+      hintTimerRef.current = setTimeout(() => speakPhonics(t[firstWrongIdx]), 3200);
     } else {
       const nextIdx = slots.indexOf('');
       if (nextIdx === -1) return;
-      speakWord("You are doing great! The next sound is...", {
-        onDone: () => {
-          setTimeout(() => {
-            speakPhonics(t[nextIdx]);
-            setTimeout(() => speakWord(`The sound is ${t[nextIdx]}`), 1200);
-          }, 200);
-        },
-      });
+      speakWord("You are doing great! The next sound is...");
+      hintTimerRef.current = setTimeout(() => speakPhonics(t[nextIdx]), 3000);
+    }
+  }
+
+  function handleCheckCommon() {
+    const remaining = commonLetters.length - foundCommonCount;
+    if (remaining === 0) {
+      setMascotMsg('🎉 You found ALL the letters!');
+      speakWord("You found them all! Amazing job!");
+    } else if (remaining === 1) {
+      setMascotMsg('🔥 Almost there! Just 1 more letter!');
+      speakWord("Almost! You need just one more letter!");
+    } else {
+      setMascotMsg(`🔍 Keep looking! ${remaining} more to find!`);
+      speakWord(`You still need ${remaining} more letters. Keep looking in both words!`);
     }
   }
 
   // ── BuddyIntroOverlay callbacks ───────────────────────────────────────────────
   function handleBuddyIntroReady() {
     // Called once the overlay entrance animation finishes → speak the intro
-    speakWord("Hi! I am your helper buddy. If you get stuck, just tap me!", {
-      onDone: () => {
-        setTimeout(() => {
-          if (isMountedRef.current) setOverlayVisible(false);
-        }, 500);
-      },
-    });
+    speakWord("Hi! I am your helper buddy. If you get stuck, just tap me!");
+    setTimeout(() => {
+      if (isMountedRef.current) setOverlayVisible(false);
+    }, 3000);
   }
 
   function handleBuddyIntroDismissed() {
@@ -591,18 +599,16 @@ export default function GameScreen({ route, navigation }) {
     setOverlayMounted(false);
     const puzzle = introPuzzleRef.current;
     if (!puzzle || !isMountedRef.current) return;
-    speakWord(puzzle.word1, {
-      onDone: () => {
-        setTimeout(() => {
-          if (isMountedRef.current) speakWord(getWordSentence(puzzle.word1));
-        }, 350);
-      },
-    });
+    speakWord(puzzle.word1);
+    setTimeout(() => {
+      if (isMountedRef.current) speakWord(getWordSentence(puzzle.word1));
+    }, 1400);
   }
 
   function handlePicturePress() {
     if (!game.puzzle) return;
     const word = game.spellingTarget === 1 ? game.puzzle.word1 : game.puzzle.word2;
+    stopSpeech();
     speakWord(word);
     setTimeout(() => speakWord(getWordSentence(word)), 1800);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -636,20 +642,35 @@ export default function GameScreen({ route, navigation }) {
 
         {/* Header */}
         <View style={styles.header}>
-          <Pressable onPress={handleHome} style={styles.headerBtn} hitSlop={12}>
-            <Ionicons name="home" size={24} color="#1565C0" />
-          </Pressable>
-          <View style={styles.headerCenter}>
-            <Text style={[styles.levelText, { color: theme.color }]}>
-              {theme.mascot} LEVEL {level}
-            </Text>
+
+          {/* Left: home button + tappable avatar pill */}
+          <View style={styles.headerLeft}>
+            <Pressable onPress={handleHome} style={styles.headerBtn} hitSlop={10}>
+              <Ionicons name="home" size={22} color="#1565C0" />
+            </Pressable>
+            <Pressable
+              onPress={() => navigation.navigate('Avatar')}
+              hitSlop={8}
+              accessibilityLabel="Change avatar"
+            >
+              <PlayerAvatar variant="hud" />
+            </Pressable>
           </View>
+
+          {/* Center: level badge */}
+          <View style={styles.headerCenter}>
+            <View style={[styles.levelBadge, { borderColor: theme.color, shadowColor: theme.color }]}>
+              <Text style={styles.levelBadgeMascot}>{theme.mascot}</Text>
+              <Text style={[styles.levelBadgeText, { color: theme.color }]}>LEVEL {level}</Text>
+            </View>
+          </View>
+
+          {/* Right: score */}
           <Animated.View style={[styles.scoreCard, scoreGlowStyle]}>
             <Text style={styles.scoreText}>⭐ {game.score}</Text>
           </Animated.View>
-        </View>
 
-        <LexieBadge style={{ marginBottom: 4 }} />
+        </View>
 
         {/* Mascot speech bubble */}
         <View style={styles.mascotRow}>
@@ -704,10 +725,10 @@ export default function GameScreen({ route, navigation }) {
 
                 <Pressable
                   onPress={handleCheckSpelling}
-                  disabled={!allSlotsFilled}
-                  style={[styles.checkBtn, !allSlotsFilled && styles.checkBtnDisabled]}
+                  disabled={!allSlotsFilled || spellingPhase === 'correct'}
+                  style={[styles.checkBtn, (!allSlotsFilled || spellingPhase === 'correct') && styles.checkBtnDisabled]}
                 >
-                  <Text style={[styles.checkBtnText, !allSlotsFilled && { color: '#94A3B8' }]}>CHECK ✅</Text>
+                  <Text style={[styles.checkBtnText, (!allSlotsFilled || spellingPhase === 'correct') && { color: '#94A3B8' }]}>CHECK ✅</Text>
                 </Pressable>
               </View>
 
@@ -806,10 +827,13 @@ export default function GameScreen({ route, navigation }) {
                 ))}
               </View>
 
-              {/* Progress dots — one star per unique common letter */}
+              {/* Progress dots — one star per common letter occurrence (incl. duplicates) */}
               <View style={styles.commonProgressRow}>
-                {uniqueCommonLetters.map((letter, i) => {
-                  const found = selectedLetters.includes(letter);
+                {commonLetters.map((letter, i) => {
+                  // How many times does this letter appear up to and including position i?
+                  const occurrenceIndex = commonLetters.slice(0, i + 1).filter(l => l === letter).length;
+                  const selectedCount = word1Selected.filter(l => l === letter).length;
+                  const found = selectedCount >= occurrenceIndex;
                   return (
                     <View key={i} style={[styles.commonProgressDot, found && styles.commonProgressDotFound]}>
                       <Text style={styles.commonProgressDotText}>{found ? '⭐' : '○'}</Text>
@@ -817,9 +841,14 @@ export default function GameScreen({ route, navigation }) {
                   );
                 })}
                 <Text style={styles.commonProgressLabel}>
-                  {foundCommonCount}/{uniqueCommonLetters.length} found
+                  {foundCommonCount}/{commonLetters.length} found
                 </Text>
               </View>
+
+              {/* Check button — tap to hear how many letters remain */}
+              <Pressable onPress={handleCheckCommon} style={styles.checkCommonBtn}>
+                <Text style={styles.checkCommonBtnText}>CHECK 🔍</Text>
+              </Pressable>
             </Animated.View>
           )}
 
@@ -849,8 +878,8 @@ export default function GameScreen({ route, navigation }) {
                 </View>
               </View>
 
-              {/* Goal card */}
-              <View style={styles.goalCard}>
+              {/* Goal card — auto-spoken when phase loads */}
+              <Animated.View style={[styles.goalCard, goalCardStyle]}>
                 <View style={styles.goalTopRow}>
                   <Text style={styles.goalEmoji}>🎯</Text>
                   <View style={styles.goalTextCol}>
@@ -867,7 +896,7 @@ export default function GameScreen({ route, navigation }) {
                     💡 Use <Text style={styles.goalRuleHighlight}>any</Text> letters — you don't need them all!
                   </Text>
                 </View>
-              </View>
+              </Animated.View>
 
               {/* Common letter tiles */}
               <WordLetterTiles
@@ -959,10 +988,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.92)',
     shadowColor: '#0D47A1', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 4, elevation: 3,
   },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   headerCenter: { flex: 1, alignItems: 'center' },
-  levelText: {
-    fontFamily: 'Nunito_800ExtraBold', fontSize: 16, letterSpacing: 1,
-    textShadowColor: 'rgba(0,0,0,0.50)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 5,
+  levelBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    backgroundColor: '#FFFFFF', borderWidth: 2, borderRadius: 20,
+    paddingHorizontal: 14, paddingVertical: 5,
+    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.30, shadowRadius: 4, elevation: 4,
+  },
+  levelBadgeMascot: { fontSize: 18 },
+  levelBadgeText: {
+    fontFamily: 'Nunito_800ExtraBold', fontSize: 15, letterSpacing: 1,
   },
   scoreCard: {
     backgroundColor: 'rgba(255,255,255,0.92)', borderWidth: 2, borderColor: '#F59E0B',
@@ -1128,9 +1164,8 @@ const styles = StyleSheet.create({
     color: '#E85D04',
     fontSize: 14,
   },
-
   buildSlotsWrapper: { alignItems: 'center' },
-  buildActions: { flexDirection: 'row', gap: 8, justifyContent: 'center', alignItems: 'flex-end' },
+  buildActions: { flexDirection: 'row', gap: 8, justifyContent: 'center', alignItems: 'flex-end', overflow: 'visible' },
 
   foundSection: { gap: 8 },
   foundTitle: { fontFamily: 'Nunito_800ExtraBold', fontSize: 12, color: '#fff', letterSpacing: 1, textAlign: 'center',
@@ -1170,4 +1205,11 @@ const styles = StyleSheet.create({
   },
   submitBtnText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 14, color: '#fff', letterSpacing: 1 },
   submitBtnDisabled: { backgroundColor: '#E2E8F0', shadowOpacity: 0, elevation: 0 },
+  checkCommonBtn: {
+    backgroundColor: '#2D9CDB', borderRadius: 14,
+    paddingHorizontal: 28, paddingVertical: 12, alignItems: 'center',
+    shadowColor: '#1565C0', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.40, shadowRadius: 6, elevation: 6,
+    marginTop: 4,
+  },
+  checkCommonBtnText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 16, color: '#fff', letterSpacing: 1 },
 });

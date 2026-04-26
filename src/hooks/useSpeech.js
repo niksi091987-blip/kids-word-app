@@ -10,33 +10,38 @@ const LETTER_SOUNDS = {
   y: 'yuh', z: 'zuh',
 };
 
+// Natural conversational voice — not too slow, warm and expressive
+const VOICE_DEFAULT = {
+  language: 'en-US',
+  pitch: 1.08,
+  rate: 0.92,
+};
+
 export function useSpeech() {
+  // Queue a word/phrase — does NOT stop current speech so chained calls play in order.
+  // Call stopSpeech() first only when you need to interrupt immediately.
   const speakWord = useCallback((word, options = {}) => {
     if (!word) return;
-    Speech.stop();
+    const { onDone, ...rest } = options;
     Speech.speak(word, {
-      language: 'en-US',
-      pitch: 1.1,       // slightly higher pitch for kids
-      rate: 0.8,         // slower for clarity
-      ...options,
+      ...VOICE_DEFAULT,
+      onDone,
+      ...rest,
     });
   }, []);
 
+  // Queue phonics spelling — does NOT stop current speech.
   const speakPhonics = useCallback((word, options = {}) => {
     if (!word) return;
-    Speech.stop();
     const letters = word.toLowerCase().split('');
     const spelled = letters.map(l => LETTER_SOUNDS[l] || l).join(', ');
-    // Speak the letter sounds slowly, then say the full word clearly at normal speed
     Speech.speak(spelled, {
       language: 'en-US',
       pitch: 1.1,
-      rate: 0.5,
+      rate: 0.55,
       onDone: () => {
         Speech.speak(word, {
-          language: 'en-US',
-          pitch: 1.1,
-          rate: 0.75,
+          ...VOICE_DEFAULT,
           onDone: options.onDone,
         });
       },
@@ -45,15 +50,16 @@ export function useSpeech() {
 
   const speakLetter = useCallback((letter) => {
     if (!letter) return;
-    Speech.stop();
     const sound = LETTER_SOUNDS[letter.toLowerCase()] || letter;
     Speech.speak(sound, {
       language: 'en-US',
-      pitch: 1.2,
-      rate: 0.7,
+      pitch: 1.15,
+      rate: 0.78,
     });
   }, []);
 
+  // Stops all current and queued speech — call before speakWord when you need
+  // to interrupt (e.g. user taps picture, user taps hint button).
   const stopSpeech = useCallback(() => {
     Speech.stop();
   }, []);

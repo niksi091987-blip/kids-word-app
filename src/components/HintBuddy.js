@@ -154,7 +154,9 @@ export default function HintBuddy({ onPress, disabled }) {
         </View>
       </Animated.View>
 
-      <Text style={[styles.label, disabled && { color: '#9CA3AF' }]}>HINT</Text>
+      <View style={[styles.labelPill, disabled && styles.labelPillDisabled]}>
+        <Text style={styles.label}>HINT</Text>
+      </View>
     </Pressable>
   );
 }
@@ -169,12 +171,14 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     width: W + 14,
     minHeight: H + 30,
+    overflow: 'visible',
   },
 
   // Speech bubble
   bubble: {
     position: 'absolute',
     bottom: H + 26,
+    zIndex: 20,
     backgroundColor: '#FFFBEB',
     borderWidth: 2,
     borderColor: '#F59E0B',
@@ -187,7 +191,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.14,
     shadowRadius: 4,
-    elevation: 5,
+    elevation: 20,
   },
   bubbleText: {
     fontFamily: 'Nunito_700Bold',
@@ -299,11 +303,20 @@ const styles = StyleSheet.create({
   wingRight: {},
 
   // Label
+  labelPill: {
+    backgroundColor: '#92400E',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginTop: 4,
+  },
+  labelPillDisabled: {
+    backgroundColor: '#9CA3AF',
+  },
   label: {
     fontFamily: 'Nunito_800ExtraBold',
     fontSize: 10,
-    color: '#92400E',
+    color: '#FFFFFF',
     letterSpacing: 1.2,
-    marginTop: 4,
   },
 });

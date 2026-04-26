@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, Dimensions } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, StyleSheet, Pressable, ScrollView, Dimensions, Alert, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -8,9 +8,12 @@ import Animated, {
   withTiming, withDelay, Easing,
 } from 'react-native-reanimated';
 import { useProgress, PROGRESS_ACTIONS } from '../context/ProgressContext';
+import { useUser } from '../context/UserContext';
 import { getLevelColor } from '../constants/colors';
-import { TOTAL_LEVELS } from '../constants/config';
+import { TOTAL_LEVELS, GUEST_LEVEL_LIMIT } from '../constants/config';
 import LexieBadge from '../components/LexieBadge';
+import GuestGateModal from '../components/GuestGateModal';
+import PlayerAvatar from '../components/PlayerAvatar';
 
 const { width: SW } = Dimensions.get('window');
 
@@ -139,11 +142,14 @@ const HOME_LEVEL_COLORS = [
 // ══════════════════════════════════════════════════════════════════
 //  LEVEL CELL — animated grid tile
 // ══════════════════════════════════════════════════════════════════
-function LevelCell({ lvl, lvlData, delay, onPress }) {
+function LevelCell({ lvl, lvlData, delay, onPress, guestLocked = false }) {
   const unlocked = lvlData?.unlocked;
   const stars    = lvlData?.bestStars || 0;
   const done     = unlocked && stars > 0;
-  const color    = unlocked ? HOME_LEVEL_COLORS[lvl - 1] : '#94A3B8';
+
+  // Guest-locked levels get a distinct teal/Google-hinted color
+  const color = guestLocked ? '#4285F4' : unlocked ? HOME_LEVEL_COLORS[lvl - 1] : '#94A3B8';
+  const tappable = unlocked || guestLocked; // guest-locked levels ARE tappable (to open gate)
 
   const sc = useSharedValue(0);
   const pressS = useSharedValue(1);
@@ -155,8 +161,8 @@ function LevelCell({ lvl, lvlData, delay, onPress }) {
 
   return (
     <Pressable
-      onPress={() => unlocked && onPress(lvl)}
-      onPressIn={() => { if (unlocked) pressS.value = withSpring(0.90); }}
+      onPress={() => tappable && onPress(lvl)}
+      onPressIn={() => { if (tappable) pressS.value = withSpring(0.90); }}
       onPressOut={() => { pressS.value = withSpring(1); }}
     >
       <Animated.View style={cellAnim}>
@@ -164,23 +170,28 @@ function LevelCell({ lvl, lvlData, delay, onPress }) {
           width: 58, height: 68, borderRadius: 16, borderWidth: 2.5,
           alignItems: 'center', justifyContent: 'center', gap: 3,
           borderColor: color,
-          backgroundColor: done ? color : unlocked ? '#fff' : '#F1F5F9',
-          shadowColor: unlocked ? color : '#000',
+          backgroundColor: done ? color : (unlocked || guestLocked) ? '#fff' : '#F1F5F9',
+          shadowColor: tappable ? color : '#000',
           shadowOffset: { width: 0, height: done ? 4 : 2 },
-          shadowOpacity: done ? 0.45 : 0.10,
+          shadowOpacity: done ? 0.45 : tappable ? 0.20 : 0.10,
           shadowRadius: done ? 8 : 4,
-          elevation: done ? 6 : 2,
+          elevation: done ? 6 : tappable ? 3 : 2,
         }]}>
-          {unlocked
+          {guestLocked
             ? <>
-                <Text style={{ fontFamily:'Nunito_800ExtraBold', fontSize: 22, color: done ? '#fff' : color, lineHeight: 26 }}>{lvl}</Text>
+                <Text style={{ fontSize: 16 }}>G</Text>
+                <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 11, color: '#4285F4' }}>{lvl}</Text>
+              </>
+            : unlocked
+            ? <>
+                <Text style={{ fontFamily: 'Nunito_800ExtraBold', fontSize: 22, color: done ? '#fff' : color, lineHeight: 26 }}>{lvl}</Text>
                 <Text style={{ fontSize: 10, color: done ? 'rgba(255,255,255,0.90)' : '#CBD5E1', lineHeight: 12 }}>
                   {'★'.repeat(stars)}{'☆'.repeat(3 - stars)}
                 </Text>
               </>
             : <>
                 <Text style={{ fontSize: 18, opacity: 0.5 }}>🔒</Text>
-                <Text style={{ fontFamily:'Nunito_700Bold', fontSize: 11, color: '#94A3B8' }}>{lvl}</Text>
+                <Text style={{ fontFamily: 'Nunito_700Bold', fontSize: 11, color: '#94A3B8' }}>{lvl}</Text>
               </>
           }
         </Animated.View>
@@ -195,6 +206,30 @@ function LevelCell({ lvl, lvlData, delay, onPress }) {
 
 export default function HomeScreen({ navigation }) {
   const { state: progress, dispatch } = useProgress();
+  const { state: user, logout } = useUser();
+
+  const [gateVisible, setGateVisible]   = useState(false);
+  const [gateLevel,   setGateLevel]     = useState(null);
+
+  const isGuest = user.type === 'guest';
+
+  const handleLogout = () => {
+    if (Platform.OS === 'web') {
+      if (window.confirm('Log out?\nYour progress is saved in the cloud.')) logout();
+    } else {
+      Alert.alert('Log out?', 'Your progress is saved in the cloud.', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log out', style: 'destructive', onPress: () => logout() },
+      ]);
+    }
+  };
+
+  // Navigate to Welcome once logout clears user.type to null
+  useEffect(() => {
+    if (user.loaded && user.type === null) {
+      navigation.replace('Welcome');
+    }
+  }, [user.loaded, user.type]);
 
   const heroScale  = useSharedValue(0);
   const statsSlide = useSharedValue(60);
@@ -244,10 +279,13 @@ export default function HomeScreen({ navigation }) {
       <SafeAreaView style={ui.safe}>
         <ScrollView contentContainerStyle={ui.scroll} showsVerticalScrollIndicator={false}>
 
-          {/* Hero — badge + owl */}
+          {/* Hero — badge + tappable player avatar */}
           <Animated.View style={[ui.heroArea, heroStyle]}>
             <LexieBadge large />
-            <LexieOwl />
+            {/* Tap avatar to open avatar configurator */}
+            <Pressable onPress={() => navigation.navigate('Avatar')} accessibilityLabel="Change your avatar">
+              <PlayerAvatar variant="card" />
+            </Pressable>
           </Animated.View>
 
           {/* Streak */}
@@ -296,20 +334,66 @@ export default function HomeScreen({ navigation }) {
 
             {/* Level grid — 5×2 animated */}
             <View style={ui.levelGrid}>
-              {Array.from({ length: TOTAL_LEVELS }, (_, i) => (
-                <LevelCell
-                  key={i}
-                  lvl={i + 1}
-                  lvlData={progress.levels[i + 1]}
-                  delay={i * 60}
-                  onPress={(lvl) => navigation.navigate('Game', { level: lvl })}
-                />
-              ))}
+              {Array.from({ length: TOTAL_LEVELS }, (_, i) => {
+                const lvl = i + 1;
+                const guestLocked = isGuest && lvl > GUEST_LEVEL_LIMIT;
+                return (
+                  <LevelCell
+                    key={i}
+                    lvl={lvl}
+                    lvlData={progress.levels[lvl]}
+                    delay={i * 60}
+                    guestLocked={guestLocked}
+                    onPress={(l) => {
+                      if (isGuest && l > GUEST_LEVEL_LIMIT) {
+                        setGateLevel(l);
+                        setGateVisible(true);
+                      } else {
+                        navigation.navigate('Game', { level: l });
+                      }
+                    }}
+                  />
+                );
+              })}
             </View>
+
+            {/* Guest badge / login prompt */}
+            {isGuest ? (
+              <Pressable
+                onPress={() => navigation.navigate('Login')}
+                style={ui.guestBadge}
+              >
+                <Text style={ui.guestBadgeText}>
+                  🔐 Log in to save progress &amp; unlock all levels
+                </Text>
+              </Pressable>
+            ) : (
+              <View style={ui.accountRow}>
+                <Text style={ui.accountName}>👤 {user.name}</Text>
+                <Pressable onPress={handleLogout}>
+                  <Text style={ui.logoutText}>Log out</Text>
+                </Pressable>
+              </View>
+            )}
           </View>
 
         </ScrollView>
       </SafeAreaView>
+
+      {/* Guest gate modal */}
+      <GuestGateModal
+        visible={gateVisible}
+        levels={progress.levels}
+        onClose={() => setGateVisible(false)}
+        onSignedIn={(action) => {
+          setGateVisible(false);
+          if (action === 'goToLogin') {
+            navigation.navigate('Login');
+          } else if (gateLevel) {
+            navigation.navigate('Game', { level: gateLevel });
+          }
+        }}
+      />
     </View>
   );
 }
@@ -397,6 +481,29 @@ const ui = StyleSheet.create({
   levelGrid: {
     flexDirection:'row', flexWrap:'wrap',
     justifyContent:'center', gap:10,
-    paddingHorizontal:12, paddingBottom:16, paddingTop:8,
+    paddingHorizontal:12, paddingBottom:8, paddingTop:8,
+  },
+
+  guestBadge: {
+    marginHorizontal: 12, marginBottom: 14, marginTop: 4,
+    backgroundColor: 'rgba(66,133,244,0.10)',
+    borderRadius: 14, borderWidth: 1, borderColor: 'rgba(66,133,244,0.30)',
+    paddingHorizontal: 14, paddingVertical: 9,
+  },
+  guestBadgeText: {
+    fontFamily: 'Nunito_600SemiBold', fontSize: 12, color: '#1565C0', textAlign: 'center',
+  },
+  accountRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginHorizontal: 12, marginBottom: 14, marginTop: 4,
+    backgroundColor: 'rgba(124,58,237,0.08)',
+    borderRadius: 14, borderWidth: 1, borderColor: 'rgba(124,58,237,0.2)',
+    paddingHorizontal: 14, paddingVertical: 9,
+  },
+  accountName: {
+    fontFamily: 'Nunito_600SemiBold', fontSize: 13, color: '#5b21b6',
+  },
+  logoutText: {
+    fontFamily: 'Nunito_600SemiBold', fontSize: 12, color: '#ef4444',
   },
 });

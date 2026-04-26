@@ -47,11 +47,11 @@ async function playSfx(ref, key) {
 
 // ─── Movie data ───────────────────────────────────────────────────
 const NARRATION = [
-  "Hi there! I'm Lexie the owl! Welcome to Lexie's Word Lab! Let's go on a spelling adventure!",
-  "First, you'll see a picture. Tap the letters to spell the word. Like this — Cat! Amazing!",
-  "Next, find letters that appear in BOTH words. See how A glows in Cat and Hat? Those are your keys!",
-  "Then use those glowing letters to build brand new words. A and T makes AT! Build more words for more points!",
-  "Complete each level to earn up to three stars! Collect them all and become a Lexie's Word Lab legend! Are you ready?",
+  "Hi there. I am Lexie the owl, and this is my Word Lab. Come on in. We are going on a spelling adventure together.",
+  "You will see a picture. Look at it carefully, then tap the letters, one by one, to spell the word. Take your time.",
+  "Now look at both words. Can you find the letters that appear in both of them? Those special letters will glow for you.",
+  "Pick up those glowing letters and use them to build brand new words. The more words you build, the more points you earn.",
+  "Finish each level and you can earn up to three stars. Collect them all, and you will become a true Word Lab legend. Are you ready to begin?",
 ];
 
 // 5 background palettes — one per chapter
@@ -248,12 +248,13 @@ function SpeechBubble({ text }) {
 // ══════════════════════════════════════════════════════════════════
 //  LEXIE CHARACTER
 // ══════════════════════════════════════════════════════════════════
-function Lexie({ mood = 'wave', size = 110 }) {
+function Lexie({ mood = 'wave', size = 110, talking = false }) {
   const by = useSharedValue(0);
   const wr = useSharedValue(0);
   const sy = useSharedValue(1);
   const sx = useSharedValue(1);
   const so = useSharedValue(0);
+  const beakScale = useSharedValue(1);
   const MOOD_C = {
     wave:['#FF9A3C','#FF6B35'], excited:['#FF6B6B','#FF4757'],
     think:['#54A0FF','#2E86DE'], happy:['#2ECC71','#27AE60'], celebrate:['#A855F7','#7C3AED'],
@@ -266,12 +267,29 @@ function Lexie({ mood = 'wave', size = 110 }) {
       withTiming(0,  {duration:600,easing:Easing.inOut(Easing.ease)}),
     ),-1,true);
     if (mood==='wave')      wr.value = withRepeat(withSequence(withTiming(28,{duration:320}),withTiming(-8,{duration:280}),withTiming(0,{duration:200}),withTiming(0,{duration:700})),-1,false);
+
     if (mood==='celebrate') { sy.value=withRepeat(withSequence(withTiming(1.18,{duration:220}),withTiming(0.88,{duration:180}),withTiming(1,{duration:180})),-1,false); sx.value=withRepeat(withSequence(withTiming(0.88,{duration:220}),withTiming(1.12,{duration:180}),withTiming(1,{duration:180})),-1,false); so.value=withRepeat(withSequence(withTiming(1,{duration:400}),withTiming(0.2,{duration:400})),-1,true); }
     if (mood==='excited')   sy.value=withRepeat(withSequence(withTiming(1.12,{duration:260}),withTiming(0.9,{duration:200}),withTiming(1,{duration:160}),withTiming(1,{duration:300})),-1,false);
   }, [mood]);
+  // Beak talking animation — same idea as the demo's speak-move keyframe
+  useEffect(() => {
+    if (talking) {
+      beakScale.value = withRepeat(
+        withSequence(
+          withTiming(1.7, { duration: 120 }),
+          withTiming(1.0, { duration: 120 }),
+        ), -1, false,
+      );
+    } else {
+      cancelAnimation(beakScale);
+      beakScale.value = withTiming(1.0, { duration: 100 });
+    }
+  }, [talking]);
+
   const ba = useAnimatedStyle(() => ({ transform:[{translateY:by.value},{scaleY:sy.value},{scaleX:sx.value}] }));
   const wa = useAnimatedStyle(() => ({ transform:[{rotate:`${wr.value}deg`}] }));
   const sa = useAnimatedStyle(() => ({ opacity: so.value }));
+  const beakAnim = useAnimatedStyle(() => ({ transform: [{ scaleY: beakScale.value }] }));
   const mc = MOOD_C[mood] || MOOD_C.wave;
   return (
     <View style={{alignItems:'center',width:size+64}}>
@@ -288,7 +306,7 @@ function Lexie({ mood = 'wave', size = 110 }) {
               </View>
             ))}
           </View>
-          <View style={[lx.beak,{borderLeftWidth:size*0.09,borderRightWidth:size*0.09,borderTopWidth:size*0.13}]}/>
+          <Animated.View style={[lx.beak,{borderLeftWidth:size*0.09,borderRightWidth:size*0.09,borderTopWidth:size*0.13}, beakAnim]}/>
           <View style={[lx.cheek,{left:size*0.1,bottom:size*0.26}]}/>
           <View style={[lx.cheek,{right:size*0.1,bottom:size*0.26}]}/>
           <View style={[lx.belly,{width:size*0.55,height:size*0.38,bottom:size*0.04}]}/>
@@ -667,13 +685,24 @@ function TapToStart({ onStart }) {
 }
 
 export default function IntroScreen({ navigation }) {
-  const [chapter, setChapter]   = useState(0);   // 0-4 = playing, 5 = end
-  const [started, setStarted]   = useState(false); // false = show tap-to-start splash
-  const [visible, setVisible]   = useState(true); // content visibility (for crossfade)
-  const sfxRef     = useRef({});
-  const bgMusicRef = useRef(null);
-  const autoTimer  = useRef(null);
-  const busy       = useRef(false);
+  const [chapter, setChapter]   = useState(0);
+  const [started, setStarted]   = useState(false);
+  const [visible, setVisible]   = useState(true);
+  const [isTalking, setIsTalking] = useState(false);
+  const sfxRef          = useRef({});
+  const bgMusicRef      = useRef(null);
+  const narrationRef    = useRef(null); // currently loaded narration sound
+  const autoTimer       = useRef(null);
+  const busy            = useRef(false);
+  const warmVoiceRef    = useRef(null);
+
+  const NARRATION_FILES = [
+    require('../../assets/sounds/narration_0.mp3'),
+    require('../../assets/sounds/narration_1.mp3'),
+    require('../../assets/sounds/narration_2.mp3'),
+    require('../../assets/sounds/narration_3.mp3'),
+    require('../../assets/sounds/narration_4.mp3'),
+  ];
 
   // 5 background opacities for smooth crossfade
   const bg0 = useSharedValue(1);
@@ -698,11 +727,23 @@ export default function IntroScreen({ navigation }) {
   useEffect(() => {
     loadSounds().then(l => {
       sfxRef.current = l;
-      // Playing at volume 0 activates the AVAudioSession on iOS so TTS
-      // can speak without needing a user gesture first.
       const s = l.tile_tap;
       if (s) s.setVolumeAsync(0).then(() => s.playAsync()).catch(() => {});
     });
+
+    // Voice selection — mirrors the demo exactly:
+    // prefer Google US English, Natural, or Female; fallback to first English voice
+    Speech.getAvailableVoicesAsync().then(voices => {
+      const enVoices = voices.filter(v => v.language.startsWith('en'));
+      const pick = enVoices.find(v =>
+        v.name.includes('Google US English') ||
+        v.name.includes('Natural')           ||
+        v.name.includes('Female')            ||
+        v.name.includes('Samantha')          ||
+        v.quality === 'Enhanced'
+      ) || enVoices[0]; // fallback to voices[0] just like the demo
+      if (pick) warmVoiceRef.current = pick.identifier;
+    }).catch(() => {});
 
     // Load music silently — will be played on user tap (iOS requires gesture)
     Audio.Sound.createAsync(
@@ -712,6 +753,7 @@ export default function IntroScreen({ navigation }) {
 
     return () => {
       Speech.stop();
+      if (narrationRef.current) narrationRef.current.unloadAsync().catch(() => {});
       Object.values(sfxRef.current).forEach(s => { try { s.unloadAsync(); } catch {} });
       if (bgMusicRef.current) bgMusicRef.current.unloadAsync().catch(() => {});
     };
@@ -749,10 +791,33 @@ export default function IntroScreen({ navigation }) {
     lexieY.value = withSpring(0, { damping: 14, stiffness: 100 });
     lexieS.value = withSpring(1, { damping: 8,  stiffness: 100 });
 
-    // Narrate (fire and forget — do NOT depend on onDone)
+    // Stop any previous narration
     Speech.stop();
-    const sTimer = setTimeout(() => {
-      Speech.speak(NARRATION[chapter], { pitch: 1.18, rate: 0.80 });
+    setIsTalking(false);
+    if (narrationRef.current) {
+      narrationRef.current.unloadAsync().catch(() => {});
+      narrationRef.current = null;
+    }
+
+    // Play pre-recorded high-quality narration file
+    const sTimer = setTimeout(async () => {
+      try {
+        const { sound } = await Audio.Sound.createAsync(
+          NARRATION_FILES[chapter],
+          { shouldPlay: true },
+        );
+        narrationRef.current = sound;
+        setIsTalking(true);
+        sound.setOnPlaybackStatusUpdate(status => {
+          if (status.didJustFinish) {
+            setIsTalking(false);
+            sound.unloadAsync().catch(() => {});
+            narrationRef.current = null;
+          }
+        });
+      } catch {
+        setIsTalking(false);
+      }
     }, 500);
 
     // PRIMARY auto-advance: fixed timer — reliable on all devices
@@ -770,7 +835,13 @@ export default function IntroScreen({ navigation }) {
     if (busy.current) return;
     busy.current = true;
     Speech.stop();
+    setIsTalking(false);
     if (autoTimer.current) clearTimeout(autoTimer.current);
+    if (narrationRef.current) {
+      narrationRef.current.stopAsync().catch(() => {});
+      narrationRef.current.unloadAsync().catch(() => {});
+      narrationRef.current = null;
+    }
 
     const next = chapter + 1;
 
@@ -800,18 +871,20 @@ export default function IntroScreen({ navigation }) {
 
   const stopAll = () => {
     Speech.stop();
+    setIsTalking(false);
+    if (narrationRef.current) { narrationRef.current.stopAsync().catch(() => {}); }
     if (autoTimer.current) clearTimeout(autoTimer.current);
     if (bgMusicRef.current) bgMusicRef.current.stopAsync().catch(() => {});
   };
 
   const handleSkip = () => {
     stopAll();
-    AsyncStorage.setItem(INTRO_KEY, '1').then(() => navigation.replace('Home'));
+    AsyncStorage.setItem(INTRO_KEY, '1').then(() => navigation.replace('Welcome'));
   };
 
   const handlePlay = () => {
     stopAll();
-    navigation.replace('Home');
+    navigation.replace('Welcome');
   };
 
   const contentAnim = useAnimatedStyle(() => ({
@@ -894,7 +967,7 @@ export default function IntroScreen({ navigation }) {
             <View style={s.charArea}>
               <SpeechBubble text={SPEECHES[chapter]} />
               <Animated.View style={[{ alignItems: 'center' }, lexieAnim]}>
-                <Lexie mood={MOODS[chapter]} size={SIZES[chapter]} />
+                <Lexie mood={MOODS[chapter]} size={SIZES[chapter]} talking={isTalking} />
               </Animated.View>
             </View>
 
