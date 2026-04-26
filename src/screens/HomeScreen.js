@@ -334,19 +334,28 @@ export default function HomeScreen({ navigation }) {
           {/* Difficulty selector */}
           <View style={ui.diffRow}>
             {[
-              { key: 'easy',   emoji: '🟢', label: 'EASY'   },
-              { key: 'normal', emoji: '🟡', label: 'NORMAL' },
-              { key: 'hard',   emoji: '🔴', label: 'HARD'   },
-            ].map(({ key, emoji, label }) => (
-              <Pressable
-                key={key}
-                onPress={() => handleDifficulty(key)}
-                style={[ui.diffBtn, difficulty === key && ui.diffBtnActive]}
-              >
-                <Text style={ui.diffEmoji}>{emoji}</Text>
-                <Text style={[ui.diffLabel, difficulty === key && ui.diffLabelActive]}>{label}</Text>
-              </Pressable>
-            ))}
+              { key: 'easy',   emoji: '🟢', label: 'EASY',   color: '#16A34A' },
+              { key: 'normal', emoji: '🟡', label: 'NORMAL', color: '#D97706' },
+              { key: 'hard',   emoji: '🔴', label: 'HARD',   color: '#DC2626' },
+            ].map(({ key, emoji, label, color }) => {
+              const active = difficulty === key;
+              return (
+                <Pressable
+                  key={key}
+                  onPress={() => handleDifficulty(key)}
+                  style={[
+                    ui.diffBtn,
+                    { borderColor: color },
+                    active && { backgroundColor: color },
+                  ]}
+                >
+                  <Text style={ui.diffEmoji}>{emoji}</Text>
+                  <Text style={[ui.diffLabel, { color: active ? '#fff' : '#1E3A5F' }]}>
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
 
           {/* PLAY */}
@@ -500,19 +509,15 @@ const ui = StyleSheet.create({
   stickerRowArrow: { fontFamily:'Nunito_800ExtraBold', fontSize:20, color:'rgba(255,255,255,0.70)' },
 
   diffRow: {
-    flexDirection:'row', gap:10, marginBottom:14, marginTop:2,
+    flexDirection:'row', gap:8, marginBottom:14, marginTop:2,
   },
   diffBtn: {
-    flex:1, alignItems:'center', paddingVertical:10, borderRadius:18,
-    backgroundColor:'rgba(255,255,255,0.70)', borderWidth:2, borderColor:'transparent',
+    flex:1, alignItems:'center', paddingVertical:14, borderRadius:18,
+    backgroundColor:'rgba(255,255,255,0.96)', borderWidth:2.5,
+    shadowColor:'#000', shadowOffset:{width:0,height:2}, shadowOpacity:0.12, shadowRadius:4, elevation:3,
   },
-  diffBtnActive: {
-    backgroundColor:'rgba(255,255,255,0.97)', borderColor:'#FFD700',
-    shadowColor:'#FFD700', shadowOffset:{width:0,height:2}, shadowOpacity:0.5, shadowRadius:6, elevation:5,
-  },
-  diffEmoji: { fontSize:20 },
-  diffLabel: { fontFamily:'Nunito_800ExtraBold', fontSize:11, color:'rgba(255,255,255,0.75)', letterSpacing:1, marginTop:2 },
-  diffLabelActive: { color:'#1565C0' },
+  diffEmoji: { fontSize:24 },
+  diffLabel: { fontFamily:'Nunito_800ExtraBold', fontSize:13, letterSpacing:0.5, marginTop:4 },
 
   playWrapper:   { width:'100%', marginBottom:20 },
   playBtnShadow: { position:'absolute', bottom:-5, left:5, right:-5, height:54, borderRadius:28, backgroundColor:'#C2410C' },
