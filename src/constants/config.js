@@ -79,3 +79,7 @@ export const GUEST_LEVEL_LIMIT = 5;
 export const STORAGE_KEY = '@word_match_kids_progress_v1'; // legacy (kept for migration)
 export const PROGRESS_KEY_GUEST  = 'wm_progress_guest';
 export const PROGRESS_KEY_GOOGLE = 'wm_progress_google_';
+export const DIFFICULTY_KEY = 'wm_difficulty'; // 'easy' | 'normal' | 'hard'
+
+// Timer multipliers per difficulty
+export const DIFFICULTY_MULT = { easy: 1.5, normal: 1.0, hard: 0.7 };

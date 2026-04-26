@@ -7,10 +7,11 @@ import Animated, {
   withSpring, withRepeat, withSequence,
   withTiming, withDelay, Easing,
 } from 'react-native-reanimated';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useProgress, PROGRESS_ACTIONS } from '../context/ProgressContext';
 import { useUser } from '../context/UserContext';
 import { getLevelColor } from '../constants/colors';
-import { TOTAL_LEVELS, GUEST_LEVEL_LIMIT } from '../constants/config';
+import { TOTAL_LEVELS, GUEST_LEVEL_LIMIT, DIFFICULTY_KEY } from '../constants/config';
 import LexieBadge from '../components/LexieBadge';
 import GuestGateModal from '../components/GuestGateModal';
 import PlayerAvatar from '../components/PlayerAvatar';
@@ -208,10 +209,20 @@ export default function HomeScreen({ navigation }) {
   const { state: progress, dispatch } = useProgress();
   const { state: user, logout } = useUser();
 
-  const [gateVisible, setGateVisible]   = useState(false);
-  const [gateLevel,   setGateLevel]     = useState(null);
+  const [gateVisible,  setGateVisible]  = useState(false);
+  const [gateLevel,    setGateLevel]    = useState(null);
+  const [difficulty,   setDifficulty]   = useState('normal');
 
   const isGuest = user.type === 'guest';
+
+  useEffect(() => {
+    AsyncStorage.getItem(DIFFICULTY_KEY).then(v => { if (v) setDifficulty(v); }).catch(() => {});
+  }, []);
+
+  const handleDifficulty = (d) => {
+    setDifficulty(d);
+    AsyncStorage.setItem(DIFFICULTY_KEY, d).catch(() => {});
+  };
 
   const handleLogout = () => {
     if (Platform.OS === 'web') {
@@ -309,6 +320,24 @@ export default function HomeScreen({ navigation }) {
               </View>
             ))}
           </Animated.View>
+
+          {/* Difficulty selector */}
+          <View style={ui.diffRow}>
+            {[
+              { key: 'easy',   emoji: '🟢', label: 'EASY'   },
+              { key: 'normal', emoji: '🟡', label: 'NORMAL' },
+              { key: 'hard',   emoji: '🔴', label: 'HARD'   },
+            ].map(({ key, emoji, label }) => (
+              <Pressable
+                key={key}
+                onPress={() => handleDifficulty(key)}
+                style={[ui.diffBtn, difficulty === key && ui.diffBtnActive]}
+              >
+                <Text style={ui.diffEmoji}>{emoji}</Text>
+                <Text style={[ui.diffLabel, difficulty === key && ui.diffLabelActive]}>{label}</Text>
+              </Pressable>
+            ))}
+          </View>
 
           {/* PLAY */}
           <Animated.View style={[ui.playWrapper, playStyle]}>
@@ -446,6 +475,21 @@ const ui = StyleSheet.create({
   statEmoji: { fontSize:22 },
   statNum:   { fontFamily:'Nunito_800ExtraBold', fontSize:22 },
   statLabel: { fontFamily:'Nunito_700Bold', fontSize:10, letterSpacing:1 },
+
+  diffRow: {
+    flexDirection:'row', gap:10, marginBottom:14, marginTop:2,
+  },
+  diffBtn: {
+    flex:1, alignItems:'center', paddingVertical:10, borderRadius:18,
+    backgroundColor:'rgba(255,255,255,0.70)', borderWidth:2, borderColor:'transparent',
+  },
+  diffBtnActive: {
+    backgroundColor:'rgba(255,255,255,0.97)', borderColor:'#FFD700',
+    shadowColor:'#FFD700', shadowOffset:{width:0,height:2}, shadowOpacity:0.5, shadowRadius:6, elevation:5,
+  },
+  diffEmoji: { fontSize:20 },
+  diffLabel: { fontFamily:'Nunito_800ExtraBold', fontSize:11, color:'rgba(255,255,255,0.75)', letterSpacing:1, marginTop:2 },
+  diffLabelActive: { color:'#1565C0' },
 
   playWrapper:   { width:'100%', marginBottom:20 },
   playBtnShadow: { position:'absolute', bottom:-5, left:5, right:-5, height:54, borderRadius:28, backgroundColor:'#C2410C' },

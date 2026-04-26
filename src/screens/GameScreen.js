@@ -20,6 +20,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useGame, GAME_ACTIONS } from '../context/GameContext';
 import { useProgress, PROGRESS_ACTIONS } from '../context/ProgressContext';
@@ -29,7 +30,7 @@ import { useTimer } from '../hooks/useTimer';
 import { useSound } from '../hooks/useSound';
 import { useSpeech } from '../hooks/useSpeech';
 import { generatePuzzle, getStarRating, getSpellingHint } from '../utils/gameLogic';
-import { getTimerSeconds, SPELL_SCORE_FIRST_TRY, SPELL_SCORE_WITH_HINT } from '../constants/config';
+import { getTimerSeconds, SPELL_SCORE_FIRST_TRY, SPELL_SCORE_WITH_HINT, DIFFICULTY_KEY, DIFFICULTY_MULT } from '../constants/config';
 import LexieBadge from '../components/LexieBadge';
 import PlayerAvatar from '../components/PlayerAvatar';
 import { getWordEmoji, getWordSentence } from '../data/wordEmojis';
@@ -96,6 +97,35 @@ const MASCOT_MESSAGES = {
   wrong_spelling:   '💡 Hint: check the first letter!',
   correct_spelling: '✅ Perfect spelling!',
 };
+
+// ── FindTile — common-finding tile with shake on wrong tap ────────────────────
+function FindTile({ tile, onPress }) {
+  const shake = useSharedValue(0);
+  useEffect(() => {
+    if (tile.wrong) {
+      shake.value = withSequence(
+        withTiming(-10, { duration: 50 }),
+        withTiming(10,  { duration: 50 }),
+        withTiming(-8,  { duration: 50 }),
+        withTiming(8,   { duration: 50 }),
+        withTiming(0,   { duration: 50 }),
+      );
+    }
+  }, [tile.wrong]);
+  const shakeAnim = useAnimatedStyle(() => ({ transform: [{ translateX: shake.value }] }));
+  return (
+    <Animated.View style={shakeAnim}>
+      <Pressable
+        onPress={onPress}
+        style={[styles.findTile, tile.selected && styles.findTileSelected, tile.wrong && styles.findTileWrong]}
+      >
+        <Text style={[styles.findTileLetter, tile.selected && styles.findTileLetterSelected, tile.wrong && styles.findTileLetterWrong]}>
+          {tile.letter.toUpperCase()}
+        </Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function GameScreen({ route, navigation }) {
@@ -240,13 +270,14 @@ export default function GameScreen({ route, navigation }) {
     prevFoundCountRef.current = 0;
     dispatch({ type: GAME_ACTIONS.RESET });
 
-    const t = setTimeout(() => {
+    const t = setTimeout(async () => {
       if (!isMountedRef.current) return;
       const puzzle = replayPuzzle || generatePuzzle(level, progress.usedPairs || []);
       if (!replayPuzzle) {
         progressDispatch({ type: PROGRESS_ACTIONS.RECORD_PAIR, payload: { word1: puzzle.word1, word2: puzzle.word2 } });
       }
-      const timerSeconds = getTimerSeconds(level);
+      const diffStr = (await AsyncStorage.getItem(DIFFICULTY_KEY).catch(() => null)) || 'normal';
+      const timerSeconds = Math.round(getTimerSeconds(level) * (DIFFICULTY_MULT[diffStr] ?? 1.0));
       dispatch({ type: GAME_ACTIONS.START_PUZZLE, payload: { puzzle, timerSeconds } });
       puzzleStarted.current = true;
 
@@ -567,6 +598,43 @@ export default function GameScreen({ route, navigation }) {
     }
   }
 
+  function handleHearWord() {
+    if (!game.puzzle) return;
+    const word = game.spellingTarget === 1 ? game.puzzle.word1 : game.puzzle.word2;
+    stopSpeech();
+    speakWord(word);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  }
+
+  function handleFindTileTap(tile) {
+    if (!game.puzzle) return;
+    const w1 = game.puzzle.word1.toLowerCase();
+    const w2 = game.puzzle.word2.toLowerCase();
+    const isCommon = w1.includes(tile.letter) && w2.includes(tile.letter);
+    dispatch({ type: GAME_ACTIONS.TOGGLE_TILE, payload: { tileId: tile.id } });
+    if (isCommon) {
+      const otherSource = tile.wordSource === 1 ? 2 : 1;
+      if (!tile.selected) {
+        const match = game.wordTiles.find(
+          t => t.wordSource === otherSource && t.letter === tile.letter && !t.selected
+        );
+        if (match) dispatch({ type: GAME_ACTIONS.TOGGLE_TILE, payload: { tileId: match.id } });
+      } else {
+        const match = game.wordTiles.find(
+          t => t.wordSource === otherSource && t.letter === tile.letter && t.selected
+        );
+        if (match) dispatch({ type: GAME_ACTIONS.TOGGLE_TILE, payload: { tileId: match.id } });
+      }
+    } else {
+      setMascotMsg('❌ Nope! That letter is not in both words!');
+      speakWord("Nope! Find one in both words!");
+      setTimeout(() => {
+        dispatch({ type: GAME_ACTIONS.CLEAR_TILE_WRONG, payload: { tileId: tile.id } });
+        setMascotMsg('🕵️ Find the matching letters!');
+      }, 1000);
+    }
+  }
+
   function handleCheckCommon() {
     const remaining = commonLetters.length - foundCommonCount;
     if (remaining === 0) {
@@ -719,6 +787,10 @@ export default function GameScreen({ route, navigation }) {
               <View style={styles.spellingActions}>
                 <HintBuddy onPress={handleSpellingHint} />
 
+                <Pressable onPress={handleHearWord} style={styles.hearBtn}>
+                  <Text style={styles.hearBtnText}>🔊 HEAR IT</Text>
+                </Pressable>
+
                 <Pressable
                   onPress={handleCheckSpelling}
                   disabled={!allSlotsFilled || spellingPhase === 'correct'}
@@ -771,52 +843,11 @@ export default function GameScreen({ route, navigation }) {
                     <Text style={styles.findingRowEmoji}>{getWordEmoji(wordLabel)}</Text>
                     <View style={styles.findingTiles}>
                       {game.wordTiles.filter(t => t.wordSource === wi + 1).map(tile => (
-                        <Pressable
+                        <FindTile
                           key={tile.id}
-                          onPress={() => {
-                            const w1 = game.puzzle.word1.toLowerCase();
-                            const w2 = game.puzzle.word2.toLowerCase();
-                            const isCommon = w1.includes(tile.letter) && w2.includes(tile.letter);
-                            dispatch({ type: GAME_ACTIONS.TOGGLE_TILE, payload: { tileId: tile.id } });
-                            if (isCommon) {
-                              const otherSource = tile.wordSource === 1 ? 2 : 1;
-                              if (!tile.selected) {
-                                // Selecting: auto-select exactly one matching tile in the other word
-                                const match = game.wordTiles.find(
-                                  t => t.wordSource === otherSource && t.letter === tile.letter && !t.selected
-                                );
-                                if (match) dispatch({ type: GAME_ACTIONS.TOGGLE_TILE, payload: { tileId: match.id } });
-                              } else {
-                                // Deselecting: auto-deselect one matching tile in the other word
-                                const match = game.wordTiles.find(
-                                  t => t.wordSource === otherSource && t.letter === tile.letter && t.selected
-                                );
-                                if (match) dispatch({ type: GAME_ACTIONS.TOGGLE_TILE, payload: { tileId: match.id } });
-                              }
-                            }
-                            if (!isCommon) {
-                              setMascotMsg('❌ Nope! That letter is not in both words!');
-                              speakWord("Nope! Find one in both words!");
-                              setTimeout(() => {
-                                dispatch({ type: GAME_ACTIONS.CLEAR_TILE_WRONG, payload: { tileId: tile.id } });
-                                setMascotMsg('🕵️ Find the matching letters!');
-                              }, 1000);
-                            }
-                          }}
-                          style={[
-                            styles.findTile,
-                            tile.selected && styles.findTileSelected,
-                            tile.wrong && styles.findTileWrong,
-                          ]}
-                        >
-                          <Text style={[
-                            styles.findTileLetter,
-                            tile.selected && styles.findTileLetterSelected,
-                            tile.wrong && styles.findTileLetterWrong,
-                          ]}>
-                            {tile.letter.toUpperCase()}
-                          </Text>
-                        </Pressable>
+                          tile={tile}
+                          onPress={() => handleFindTileTap(tile)}
+                        />
                       ))}
                     </View>
                   </View>
@@ -1187,6 +1218,12 @@ const styles = StyleSheet.create({
   },
   clearBtnDisabled: { backgroundColor: '#E2E8F0', shadowOpacity: 0, elevation: 0 },
   clearBtnText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 14, color: '#FFFFFF' },
+  hearBtn: {
+    backgroundColor: '#0891B2', borderRadius: 14,
+    paddingHorizontal: 14, paddingVertical: 10, alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#0E7490', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.40, shadowRadius: 5, elevation: 5,
+  },
+  hearBtnText: { fontFamily: 'Nunito_800ExtraBold', fontSize: 14, color: '#fff' },
   checkBtn: {
     flex: 1, backgroundColor: '#7C3AED', borderRadius: 14,
     paddingHorizontal: 18, paddingVertical: 10, alignItems: 'center', justifyContent: 'center',
